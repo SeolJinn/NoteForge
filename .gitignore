@@ -1,0 +1,19 @@
+# Visual Studio and .NET
+.vs/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userprefs
+*.sln.docstates
+
+# MAUI / Xamarin
+.DS_Store
+Thumbs.db
+*.apk
+*.aab
+*.ipa
+
+# VS Code
+.vscode/
+

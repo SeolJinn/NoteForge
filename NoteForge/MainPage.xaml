@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:models="clr-namespace:NoteForge.Models"
+             x:Class="NoteForge.MainPage">
+
+    <Grid RowDefinitions="Auto, *" Padding="20">
+        <VerticalStackLayout Grid.Row="0" Spacing="10" Margin="0,0,0,20">
+            <Label x:Name="PathLabel" Text="Path: ..." FontSize="12" TextColor="Gray" />
+            
+            <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                <Button Text="Change Folder" Clicked="OnChangeFolderClicked" />
+                <Button Text="Refresh Notes" Clicked="OnRefreshClicked" />
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+
+        <CollectionView Grid.Row="1" x:Name="NotesCollection">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:Note">
+                    <Border Margin="0,5" Padding="10" Stroke="Gray" StrokeShape="RoundRectangle 5">
+                        <VerticalStackLayout>
+                            <Label Text="{Binding Filename}" FontAttributes="Bold" FontSize="16" />
+                            <Label Text="{Binding Date, StringFormat='{0:MM/dd/yyyy HH:mm}'}" FontSize="12" TextColor="Gray" />
+                            <Label Text="{Binding Text}" MaxLines="2" LineBreakMode="TailTruncation" Margin="0,5,0,0" />
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </Grid>
+
+</ContentPage>
