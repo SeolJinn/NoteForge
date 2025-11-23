@@ -28,11 +28,13 @@
     <Color x:Key="Gray950">#141414</Color>
 
     <!-- App Theme Colors -->
-    <Color x:Key="AppBackground">#181818</Color>
-    <Color x:Key="AppSurface">#252525</Color>
+    <Color x:Key="AppBackground">#1E1E1E</Color>
+    <Color x:Key="SideBar">#262626</Color>
+    <Color x:Key="TopBar">#363636</Color>
+    <Color x:Key="AppSurface">#3F3F3F</Color>
     <Color x:Key="AppSurfaceDark">#111111</Color>
-    <Color x:Key="TextPrimary">#D4D4D4</Color>
-    <Color x:Key="TextSecondary">#808080</Color>
+    <Color x:Key="TextPrimary">#DADADA</Color>
+    <Color x:Key="TextSecondary">#B3B3B3</Color>
     <Color x:Key="Separator">#333333</Color>
 
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}"/>

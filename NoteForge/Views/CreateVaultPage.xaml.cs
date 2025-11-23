@@ -61,4 +61,3 @@ public partial class CreateVaultPage : ContentPage
         }
     }
 }
-

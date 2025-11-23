@@ -12,6 +12,8 @@ public interface INoteService
     Task<string?> PickFolderAsync();
     void SetVaultPath(string path);
     List<VaultInfo> GetRecentVaults();
+    Task SaveNoteAsync(Note note);
+    Task<bool> RenameNoteAsync(Note note, string newName);
 }
 
 public class NoteService : INoteService
@@ -99,6 +101,60 @@ public class NoteService : INoteService
         catch
         {
             return [];
+        }
+    }
+
+    public async Task SaveNoteAsync(Note note)
+    {
+        if (string.IsNullOrEmpty(note.FilePath)) return;
+
+        try
+        {
+            await File.WriteAllTextAsync(note.FilePath, note.Text);
+        }
+        catch (Exception ex)
+        {
+             System.Diagnostics.Debug.WriteLine($"Error saving note: {ex.Message}");
+        }
+    }
+
+    public async Task<bool> RenameNoteAsync(Note note, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(newName) || note is null || string.IsNullOrEmpty(note.FilePath))
+            return false;
+
+        // Ensure .md extension if it's missing (assuming we want to keep it consistent)
+        // If the user provides "Note.md", we keep it. If "Note", we add .md
+        if (!newName.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+            newName += ".md";
+
+        var directory = Path.GetDirectoryName(note.FilePath);
+        if (string.IsNullOrEmpty(directory)) return false;
+
+        var newPath = Path.Combine(directory, newName);
+
+        // If the name hasn't changed (case insensitive check perhaps? Windows is insensitive, Linux sensitive), just return true
+        if (string.Equals(note.FilePath, newPath, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (File.Exists(newPath))
+            return false; // File already exists
+
+        try
+        {
+            // File.Move can also just rename
+            File.Move(note.FilePath, newPath);
+            
+            // Update note properties
+            note.FilePath = newPath;
+            note.Filename = newName;
+            
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error renaming note: {ex.Message}");
+            return false;
         }
     }
 

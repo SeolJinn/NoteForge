@@ -2,31 +2,183 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:NoteForge.Models"
-             x:Class="NoteForge.MainPage">
+             x:Class="NoteForge.MainPage"
+             NavigationPage.HasNavigationBar="False">
 
-    <Grid RowDefinitions="Auto, *" Padding="20">
-        <VerticalStackLayout Grid.Row="0" Spacing="10" Margin="0,0,0,20">
-            <Label x:Name="PathLabel" Text="Path: ..." FontSize="12" TextColor="Gray" />
-            
-            <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
-                <Button Text="Change Folder" Clicked="OnChangeFolderClicked" />
-                <Button Text="Refresh Notes" Clicked="OnRefreshClicked" />
-            </HorizontalStackLayout>
-        </VerticalStackLayout>
+    <Grid RowDefinitions="32, *" Padding="0">
 
-        <CollectionView Grid.Row="1" x:Name="NotesCollection">
-            <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="models:Note">
-                    <Border Margin="0,5" Padding="10" Stroke="Gray" StrokeShape="RoundRectangle 5">
-                        <VerticalStackLayout>
-                            <Label Text="{Binding Filename}" FontAttributes="Bold" FontSize="16" />
-                            <Label Text="{Binding Date, StringFormat='{0:MM/dd/yyyy HH:mm}'}" FontSize="12" TextColor="Gray" />
-                            <Label Text="{Binding Text}" MaxLines="2" LineBreakMode="TailTruncation" Margin="0,5,0,0" />
-                        </VerticalStackLayout>
-                    </Border>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+        <!-- Unified Header / Title Bar -->
+        <Grid Grid.Row="0"
+              x:Name="AppTitleBar"
+              BackgroundColor="{StaticResource TopBar}"
+              Padding="10,0,0,0"
+              ColumnDefinitions="Auto, *, Auto">
+
+            <!-- Sidebar Toggle -->
+            <Button Grid.Column="0"
+                    Text="☰"
+                    FontSize="20"
+                    TextColor="{StaticResource TextPrimary}"
+                    BackgroundColor="Transparent"
+                    WidthRequest="40"
+                    HeightRequest="40"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Center"
+                    Clicked="OnToggleSidebarClicked" />
+
+            <!-- Top Tab Title -->
+            <Entry Grid.Column="1"
+                   x:Name="TopTitleEntry"
+                   FontSize="14"
+                   TextColor="{StaticResource TextPrimary}"
+                   Placeholder="Untitled"
+                   BackgroundColor="Transparent"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Center"
+                   WidthRequest="300"
+                   HorizontalTextAlignment="Center"
+                   Opacity="0.7"
+                   IsVisible="False"
+                   TextChanged="OnTopTitleTextChanged"
+                   Completed="OnTitleCompleted"
+                   Unfocused="OnTitleUnfocused" />
+
+            <!-- Window Controls -->
+            <StackLayout Grid.Column="2"
+                         Orientation="Horizontal"
+                         Spacing="0"
+                         VerticalOptions="Start"
+                         IsVisible="{OnPlatform WinUI=True, Default=False}">
+
+                <Button Text="&#xE921;"
+                        FontFamily="Segoe Fluent Icons"
+                        Clicked="OnMinimizeClicked"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource TextPrimary}"
+                        FontSize="10"
+                        WidthRequest="46"
+                        HeightRequest="32"
+                        MinimumWidthRequest="46"
+                        MinimumHeightRequest="32"
+                        CornerRadius="0"
+                        Padding="0">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroupList>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="{StaticResource AppSurface}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateGroupList>
+                    </VisualStateManager.VisualStateGroups>
+                </Button>
+
+                <Button Text="&#xE8BB;"
+                        FontFamily="Segoe Fluent Icons"
+                        Clicked="OnCloseClicked"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource TextPrimary}"
+                        FontSize="10"
+                        WidthRequest="46"
+                        HeightRequest="32"
+                        MinimumWidthRequest="46"
+                        MinimumHeightRequest="32"
+                        CornerRadius="0"
+                        Padding="0">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroupList>
+                            <VisualStateGroup x:Name="CommonStates">
+                                <VisualState x:Name="Normal" />
+                                <VisualState x:Name="PointerOver">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor" Value="#c42b1c" />
+                                        <Setter Property="TextColor" Value="White" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateGroupList>
+                    </VisualStateManager.VisualStateGroups>
+                </Button>
+            </StackLayout>
+        </Grid>
+
+        <!-- Main Body -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto, *">
+
+            <!-- Sidebar -->
+            <Grid Grid.Column="0"
+                  x:Name="Sidebar"
+                  WidthRequest="250"
+                  BackgroundColor="{StaticResource SideBar}"
+                  RowDefinitions="Auto, *, Auto">
+
+                <!-- Sidebar Header -->
+                <VerticalStackLayout Grid.Row="0" Padding="10" Spacing="5">
+                    <Label x:Name="PathLabel" Text="Path: ..." FontSize="10" TextColor="{StaticResource Gray600}" LineBreakMode="TailTruncation" />
+                </VerticalStackLayout>
+
+                <!-- Notes List -->
+                <CollectionView Grid.Row="1" x:Name="NotesCollection" SelectionMode="Single" SelectionChanged="OnNoteSelected">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:Note">
+                            <Grid Padding="15,10">
+                                <Label Text="{Binding Filename}"
+                                       FontSize="14"
+                                       TextColor="{StaticResource TextPrimary}"
+                                       LineBreakMode="TailTruncation" />
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <!-- Sidebar Footer -->
+                <VerticalStackLayout Grid.Row="2" Padding="10" Spacing="10">
+                    <Button Text="Change Folder" Clicked="OnChangeFolderClicked" FontSize="12" />
+                    <Button Text="Refresh Notes" Clicked="OnRefreshClicked" FontSize="12" />
+                </VerticalStackLayout>
+            </Grid>
+
+            <!-- Content Area -->
+            <Grid Grid.Column="1" Padding="0">
+                <!-- Placeholder State -->
+                <Grid x:Name="EmptyStateView" IsVisible="True">
+                    <Label Text="Select a note to view"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           TextColor="{StaticResource Gray500}" />
+                </Grid>
+
+                <!-- Editor View -->
+                <Grid x:Name="EditorView" IsVisible="False" RowDefinitions="Auto, *" Padding="20">
+
+                    <!-- Title / Actions -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*" Margin="0,0,0,20">
+                        <Entry x:Name="NoteTitleEntry"
+                               FontSize="30"
+                               FontAttributes="Bold"
+                               Placeholder="Untitled"
+                               VerticalOptions="Center"
+                               TextColor="{StaticResource TextPrimary}"
+                               BackgroundColor="Transparent"
+                               TextChanged="OnNoteTitleTextChanged"
+                               Completed="OnTitleCompleted"
+                               Unfocused="OnTitleUnfocused" />
+                    </Grid>
+
+                    <!-- Editor -->
+                    <Editor Grid.Row="1"
+                            x:Name="NoteContentEditor"
+                            Placeholder="Start typing..."
+                            VerticalOptions="Fill"
+                            VerticalTextAlignment="Start"
+                            AutoSize="TextChanges"
+                            TextChanged="OnNoteContentChanged" />
+                </Grid>
+            </Grid>
+        </Grid>
     </Grid>
 
 </ContentPage>
