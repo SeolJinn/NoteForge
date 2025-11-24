@@ -24,6 +24,7 @@ public static class MauiProgram
 #endif
 
         builder.Services.AddSingleton<INoteService, NoteService>();
+        builder.Services.AddSingleton<ITabManager, TabManager>();
         builder.Services.AddTransient<MainPage>();
         builder.Services.AddTransient<VaultPage>();
         builder.Services.AddTransient<CreateVaultPage>();

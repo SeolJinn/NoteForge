@@ -2,46 +2,144 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:NoteForge.Models"
+             xmlns:converters="clr-namespace:NoteForge.Converters"
              x:Class="NoteForge.MainPage"
+             BackgroundColor="{StaticResource AppBackground}"
              NavigationPage.HasNavigationBar="False">
 
+    <ContentPage.Resources>
+        <converters:TabHoverColorConverter x:Key="TabHoverConverter" />
+    </ContentPage.Resources>
+
+    <!-- Changed row definition to accommodate header -->
     <Grid RowDefinitions="32, *" Padding="0">
 
-        <!-- Unified Header / Title Bar -->
+        <!-- Unified Header / Title Bar Container -->
         <Grid Grid.Row="0"
               x:Name="AppTitleBar"
               BackgroundColor="{StaticResource TopBar}"
-              Padding="10,0,0,0"
-              ColumnDefinitions="Auto, *, Auto">
+              ColumnDefinitions="Auto, *, Auto"
+              Padding="0">
 
-            <!-- Sidebar Toggle -->
-            <Button Grid.Column="0"
-                    Text="☰"
-                    FontSize="20"
-                    TextColor="{StaticResource TextPrimary}"
-                    BackgroundColor="Transparent"
-                    WidthRequest="40"
-                    HeightRequest="40"
-                    HorizontalOptions="Start"
-                    VerticalOptions="Center"
-                    Clicked="OnToggleSidebarClicked" />
+            <!-- Sidebar Toggle & Spacer -->
+            <Grid Grid.Column="0">
+                <!-- Spacer matches sidebar width -->
+                <BoxView WidthRequest="250"
+                         HeightRequest="1"
+                         Color="Transparent"
+                         IsVisible="{Binding IsVisible, Source={x:Reference Sidebar}}"/>
 
-            <!-- Top Tab Title -->
-            <Entry Grid.Column="1"
-                   x:Name="TopTitleEntry"
-                   FontSize="14"
-                   TextColor="{StaticResource TextPrimary}"
-                   Placeholder="Untitled"
-                   BackgroundColor="Transparent"
-                   HorizontalOptions="Center"
-                   VerticalOptions="Center"
-                   WidthRequest="300"
-                   HorizontalTextAlignment="Center"
-                   Opacity="0.7"
-                   IsVisible="False"
-                   TextChanged="OnTopTitleTextChanged"
-                   Completed="OnTitleCompleted"
-                   Unfocused="OnTitleUnfocused" />
+                <Button Text="☰"
+                        FontSize="20"
+                        TextColor="{StaticResource TextPrimary}"
+                        BackgroundColor="Transparent"
+                        WidthRequest="40"
+                        HeightRequest="40"
+                        Margin="10,0,0,0"
+                        HorizontalOptions="Start"
+                        VerticalOptions="Center"
+                        Clicked="OnToggleSidebarClicked"/>
+            </Grid>
+
+            <!-- Tab Bar moved here -->
+            <ScrollView Grid.Column="1"
+                        Orientation="Horizontal"
+                        BackgroundColor="Transparent"
+                        HeightRequest="36"
+                        HorizontalScrollBarVisibility="Never"
+                        VerticalScrollBarVisibility="Never"
+                        VerticalOptions="End"
+                        HorizontalOptions="Start">
+                <CollectionView x:Name="TabsCollection"
+                                ItemsLayout="HorizontalList"
+                                SelectionMode="Single"
+                                SelectionChanged="OnTabSelected"
+                                HeightRequest="36">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="models:Tab">
+                            <Border Stroke="Transparent"
+                                    StrokeShape="RoundRectangle 8,8,0,0"
+                                    BackgroundColor="Transparent"
+                                    Padding="12,0,4,0"
+                                    Margin="4,4,0,0"
+                                    HeightRequest="32"
+                                    VerticalOptions="End">
+
+                                <!-- Bind BackgroundColor directly to IsActive -->
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border" Binding="{Binding IsActive}" Value="True">
+                                        <Setter Property="BackgroundColor" Value="{StaticResource AppBackground}" />
+                                    </DataTrigger>
+                                    <DataTrigger TargetType="Border" Binding="{Binding IsActive}" Value="False">
+                                        <Setter Property="BackgroundColor" Value="Transparent" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal" />
+                                        <VisualState x:Name="Selected">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="{StaticResource AppBackground}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Property="BackgroundColor" Value="{Binding IsActive, Converter={StaticResource TabHoverConverter}}" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+
+                                    <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="6" VerticalOptions="Center" WidthRequest="180">
+                                        <Label Grid.Column="0"
+                                               Text="{Binding DisplayName}"
+                                               TextColor="{StaticResource TextPrimary}"
+                                               FontSize="12"
+                                               VerticalOptions="Center"
+                                               LineBreakMode="TailTruncation"/>
+
+                                    <Label Grid.Column="1"
+                                           Text="•"
+                                           TextColor="{StaticResource Primary}"
+                                           FontSize="18"
+                                           IsVisible="{Binding IsDirty}"
+                                           VerticalOptions="Center"
+                                           Margin="0,-2,0,0"/>
+
+                                    <Button Grid.Column="2"
+                                            Text="✕"
+                                            BackgroundColor="Transparent"
+                                            TextColor="{StaticResource TextSecondary}"
+                                            FontSize="8"
+                                            Padding="0"
+                                            HeightRequest="16"
+                                            WidthRequest="16"
+                                            MinimumHeightRequest="16"
+                                            MinimumWidthRequest="16"
+                                            CornerRadius="8"
+                                            Clicked="OnCloseTabClicked"
+                                            CommandParameter="{Binding .}"
+                                            VerticalOptions="Center"
+                                            Opacity="0.7">
+                                        <VisualStateManager.VisualStateGroups>
+                                            <VisualStateGroup x:Name="CommonStates">
+                                                <VisualState x:Name="Normal" />
+                                                <VisualState x:Name="PointerOver">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#33FFFFFF" />
+                                                        <Setter Property="Opacity" Value="1" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+                                            </VisualStateGroup>
+                                        </VisualStateManager.VisualStateGroups>
+                                    </Button>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </ScrollView>
 
             <!-- Window Controls -->
             <StackLayout Grid.Column="2"
