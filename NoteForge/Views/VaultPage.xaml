@@ -5,72 +5,8 @@
              x:Class="NoteForge.Views.VaultPage"
              BackgroundColor="{StaticResource AppBackground}"
              NavigationPage.HasNavigationBar="False">
-    
-    <Grid RowDefinitions="Auto, *" Padding="0">
-        
-        <!-- Custom Title Bar -->
-        <Grid Grid.Row="0" 
-              x:Name="AppTitleBar"
-              HeightRequest="32" 
-              ColumnDefinitions="*, Auto, Auto" 
-              BackgroundColor="Transparent"
-              IsVisible="{OnPlatform WinUI=True, Default=False}">
-            
-            <Button Grid.Column="1"
-                    Text="&#xE921;"
-                    FontFamily="Segoe Fluent Icons"
-                    Clicked="OnMinimizeClicked"
-                    BackgroundColor="Transparent"
-                    TextColor="{StaticResource TextPrimary}"
-                    FontSize="10"
-                    WidthRequest="46"
-                    HeightRequest="32"
-                    MinimumWidthRequest="46"
-                    MinimumHeightRequest="32"
-                    CornerRadius="0"
-                    Padding="0">
-                <VisualStateManager.VisualStateGroups>
-                    <VisualStateGroupList>
-                        <VisualStateGroup x:Name="CommonStates">
-                            <VisualState x:Name="Normal" />
-                            <VisualState x:Name="PointerOver">
-                                <VisualState.Setters>
-                                    <Setter Property="BackgroundColor" Value="{StaticResource AppSurface}" />
-                                </VisualState.Setters>
-                            </VisualState>
-                        </VisualStateGroup>
-                    </VisualStateGroupList>
-                </VisualStateManager.VisualStateGroups>
-            </Button>
 
-            <Button Grid.Column="2"
-                    Text="&#xE8BB;"
-                    FontFamily="Segoe Fluent Icons"
-                    Clicked="OnCloseClicked"
-                    BackgroundColor="Transparent"
-                    TextColor="{StaticResource TextPrimary}"
-                    FontSize="10"
-                    WidthRequest="46"
-                    HeightRequest="32"
-                    MinimumWidthRequest="46"
-                    MinimumHeightRequest="32"
-                    CornerRadius="0"
-                    Padding="0">
-                <VisualStateManager.VisualStateGroups>
-                    <VisualStateGroupList>
-                        <VisualStateGroup x:Name="CommonStates">
-                            <VisualState x:Name="Normal" />
-                            <VisualState x:Name="PointerOver">
-                                <VisualState.Setters>
-                                    <Setter Property="BackgroundColor" Value="#c42b1c" />
-                                    <Setter Property="TextColor" Value="White" />
-                                </VisualState.Setters>
-                            </VisualState>
-                        </VisualStateGroup>
-                    </VisualStateGroupList>
-                </VisualStateManager.VisualStateGroups>
-            </Button>
-        </Grid>
+    <Grid RowDefinitions="Auto, *" Padding="0">
 
         <!-- Main Content -->
         <Grid Grid.Row="1" RowDefinitions="Auto, *, Auto" Padding="40">

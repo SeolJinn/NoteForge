@@ -6,12 +6,14 @@ namespace NoteForge.Views;
 public partial class CreateVaultPage : ContentPage
 {
     private readonly INoteService _noteService;
+    private readonly ITabManager _tabManager;
     private string? _selectedPath;
 
-    public CreateVaultPage(INoteService noteService)
+    public CreateVaultPage(INoteService noteService, ITabManager tabManager)
     {
         InitializeComponent();
         _noteService = noteService;
+        _tabManager = tabManager;
     }
 
     private async void OnBrowseClicked(object sender, EventArgs e)
@@ -53,7 +55,7 @@ public partial class CreateVaultPage : ContentPage
             _noteService.SetVaultPath(fullPath);
             
             // Navigate to Main App
-            Application.Current!.Windows[0].Page = new AppShell();
+            Application.Current!.Windows[0].Page = new NavigationPage(new WorkspacePage(_noteService, _tabManager));
         }
         catch (Exception ex)
         {

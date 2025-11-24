@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:NoteForge.Models"
              xmlns:converters="clr-namespace:NoteForge.Converters"
-             x:Class="NoteForge.MainPage"
+             x:Class="NoteForge.Views.WorkspacePage"
              BackgroundColor="{StaticResource AppBackground}"
              NavigationPage.HasNavigationBar="False">
 
@@ -11,7 +11,7 @@
         <converters:TabHoverColorConverter x:Key="TabHoverConverter" />
     </ContentPage.Resources>
 
-    <!-- Changed row definition to accommodate header -->
+    <!-- Main Layout -->
     <Grid RowDefinitions="32, *" Padding="0">
 
         <!-- Unified Header / Title Bar Container -->
@@ -41,7 +41,7 @@
                         Clicked="OnToggleSidebarClicked"/>
             </Grid>
 
-            <!-- Tab Bar moved here -->
+            <!-- Tab Bar -->
             <ScrollView Grid.Column="1"
                         Orientation="Horizontal"
                         BackgroundColor="Transparent"
@@ -65,7 +65,7 @@
                                     HeightRequest="32"
                                     VerticalOptions="End">
 
-                                <!-- Bind BackgroundColor directly to IsActive -->
+                                <!-- Active Tab Styling -->
                                 <Border.Triggers>
                                     <DataTrigger TargetType="Border" Binding="{Binding IsActive}" Value="True">
                                         <Setter Property="BackgroundColor" Value="{StaticResource AppBackground}" />
@@ -91,8 +91,8 @@
                                     </VisualStateGroup>
                                 </VisualStateManager.VisualStateGroups>
 
-                                    <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="6" VerticalOptions="Center" WidthRequest="180">
-                                        <Label Grid.Column="0"
+                                <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="6" VerticalOptions="Center" WidthRequest="180">
+                                    <Label Grid.Column="0"
                                                Text="{Binding DisplayName}"
                                                TextColor="{StaticResource TextPrimary}"
                                                FontSize="12"
@@ -140,67 +140,6 @@
                     </CollectionView.ItemTemplate>
                 </CollectionView>
             </ScrollView>
-
-            <!-- Window Controls -->
-            <StackLayout Grid.Column="2"
-                         Orientation="Horizontal"
-                         Spacing="0"
-                         VerticalOptions="Start"
-                         IsVisible="{OnPlatform WinUI=True, Default=False}">
-
-                <Button Text="&#xE921;"
-                        FontFamily="Segoe Fluent Icons"
-                        Clicked="OnMinimizeClicked"
-                        BackgroundColor="Transparent"
-                        TextColor="{StaticResource TextPrimary}"
-                        FontSize="10"
-                        WidthRequest="46"
-                        HeightRequest="32"
-                        MinimumWidthRequest="46"
-                        MinimumHeightRequest="32"
-                        CornerRadius="0"
-                        Padding="0">
-                    <VisualStateManager.VisualStateGroups>
-                        <VisualStateGroupList>
-                            <VisualStateGroup x:Name="CommonStates">
-                                <VisualState x:Name="Normal" />
-                                <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters>
-                                        <Setter Property="BackgroundColor" Value="{StaticResource AppSurface}" />
-                                    </VisualState.Setters>
-                                </VisualState>
-                            </VisualStateGroup>
-                        </VisualStateGroupList>
-                    </VisualStateManager.VisualStateGroups>
-                </Button>
-
-                <Button Text="&#xE8BB;"
-                        FontFamily="Segoe Fluent Icons"
-                        Clicked="OnCloseClicked"
-                        BackgroundColor="Transparent"
-                        TextColor="{StaticResource TextPrimary}"
-                        FontSize="10"
-                        WidthRequest="46"
-                        HeightRequest="32"
-                        MinimumWidthRequest="46"
-                        MinimumHeightRequest="32"
-                        CornerRadius="0"
-                        Padding="0">
-                    <VisualStateManager.VisualStateGroups>
-                        <VisualStateGroupList>
-                            <VisualStateGroup x:Name="CommonStates">
-                                <VisualState x:Name="Normal" />
-                                <VisualState x:Name="PointerOver">
-                                    <VisualState.Setters>
-                                        <Setter Property="BackgroundColor" Value="#c42b1c" />
-                                        <Setter Property="TextColor" Value="White" />
-                                    </VisualState.Setters>
-                                </VisualState>
-                            </VisualStateGroup>
-                        </VisualStateGroupList>
-                    </VisualStateManager.VisualStateGroups>
-                </Button>
-            </StackLayout>
         </Grid>
 
         <!-- Main Body -->

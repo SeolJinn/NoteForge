@@ -1,11 +1,10 @@
 ﻿using NoteForge.Services;
 using NoteForge.Models;
-using System.Collections.ObjectModel;
 using Tab = NoteForge.Models.Tab;
 
-namespace NoteForge;
+namespace NoteForge.Views;
 
-public partial class MainPage : ContentPage
+public partial class WorkspacePage : ContentPage
 {
     private readonly INoteService _noteService;
     private readonly ITabManager _tabManager;
@@ -14,7 +13,7 @@ public partial class MainPage : ContentPage
     private bool _isLoading;
     private bool _isSyncingTitle;
 
-    public MainPage(INoteService noteService, ITabManager tabManager)
+    public WorkspacePage(INoteService noteService, ITabManager tabManager)
     {
         InitializeComponent();
         _noteService = noteService;
@@ -26,18 +25,15 @@ public partial class MainPage : ContentPage
         // Subscribe to ActiveTabChanged
         _tabManager.ActiveTabChanged += OnActiveTabChanged;
 
-        Loaded += MainPage_Loaded;
+        Loaded += WorkspacePage_Loaded;
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
-#if WINDOWS
-        SetTitleBar();
-#endif
     }
 
-    private async void MainPage_Loaded(object? sender, EventArgs e)
+    private async void WorkspacePage_Loaded(object? sender, EventArgs e)
     {
         await LoadNotes();
     }
@@ -282,43 +278,5 @@ public partial class MainPage : ContentPage
         {
             // Debounce cancelled, new keystroke happened
         }
-    }
-
-#if WINDOWS
-    private void OnMinimizeClicked(object sender, EventArgs e)
-    {
-        var window = this.Window.Handler.PlatformView as Microsoft.UI.Xaml.Window;
-        var handle = WinRT.Interop.WindowNative.GetWindowHandle(window);
-        var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(handle);
-        var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
-        if (appWindow is not null)
-        {
-            (appWindow.Presenter as Microsoft.UI.Windowing.OverlappedPresenter)?.Minimize();
-        }
-    }
-
-    private void SetTitleBar()
-    {
-        Microsoft.Maui.Handlers.WindowHandler.Mapper.AppendToMapping(nameof(IWindow), (handler, view) =>
-        {
-            var nativeWindow = handler.PlatformView;
-            nativeWindow.Activate();
-
-            var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(nativeWindow);
-            var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(windowHandle);
-            var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
-
-            if (appWindow is not null)
-            {
-                nativeWindow.ExtendsContentIntoTitleBar = true;
-                nativeWindow.SetTitleBar(AppTitleBar.Handler?.PlatformView as Microsoft.UI.Xaml.UIElement);
-            }
-        });
-    }
-#endif
-
-    private void OnCloseClicked(object sender, EventArgs e)
-    {
-        Application.Current?.Quit();
     }
 }
