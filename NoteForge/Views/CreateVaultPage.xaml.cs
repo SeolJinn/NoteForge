@@ -1,37 +1,61 @@
+using System;
+using System.IO;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using NoteForge.Services;
-using CommunityToolkit.Maui.Storage;
+using Windows.Storage.Pickers;
 
 namespace NoteForge.Views;
 
-public partial class CreateVaultPage : ContentPage
+public sealed partial class CreateVaultPage : Page
 {
     private readonly INoteService _noteService;
-    private readonly ITabManager _tabManager;
     private string? _selectedPath;
 
-    public CreateVaultPage(INoteService noteService, ITabManager tabManager)
+    public CreateVaultPage()
     {
         InitializeComponent();
-        _noteService = noteService;
-        _tabManager = tabManager;
+        _noteService = App.NoteService;
     }
 
-    private async void OnBrowseClicked(object sender, EventArgs e)
+    private async void OnBrowseClicked(object sender, RoutedEventArgs e)
     {
         try 
         {
-            var result = await FolderPicker.Default.PickAsync(CancellationToken.None);
-            if (result.IsSuccessful)
+            var picker = new FolderPicker
             {
-                _selectedPath = result.Folder.Path;
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+            };
+            picker.FileTypeFilter.Add("*");
+
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+
+            var folder = await picker.PickSingleFolderAsync();
+            if (folder is not null)
+            {
+                _selectedPath = folder.Path;
                 PathLabel.Text = _selectedPath;
                 ValidateForm();
             }
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("Error", $"Failed to pick folder: {ex.Message}", "OK");
+            var dialog = new ContentDialog
+            {
+                Title = "Error",
+                Content = $"Failed to pick folder: {ex.Message}",
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            };
+            await dialog.ShowAsync();
         }
+    }
+
+    private void OnVaultNameChanged(object sender, TextChangedEventArgs e)
+    {
+        ValidateForm();
     }
 
     private void ValidateForm()
@@ -39,7 +63,7 @@ public partial class CreateVaultPage : ContentPage
         CreateButton.IsEnabled = !string.IsNullOrWhiteSpace(VaultNameEntry.Text) && !string.IsNullOrEmpty(_selectedPath);
     }
 
-    private async void OnCreateClicked(object sender, EventArgs e)
+    private async void OnCreateClicked(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_selectedPath) || string.IsNullOrWhiteSpace(VaultNameEntry.Text))
             return;
@@ -54,12 +78,72 @@ public partial class CreateVaultPage : ContentPage
             
             _noteService.SetVaultPath(fullPath);
             
-            // Navigate to Main App
-            Application.Current!.Windows[0].Page = new NavigationPage(new WorkspacePage(_noteService, _tabManager));
+            Frame.Navigate(typeof(WorkspacePage));
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("Error", $"Failed to create vault: {ex.Message}", "OK");
+            var dialog = new ContentDialog
+            {
+                Title = "Error",
+                Content = $"Failed to create vault: {ex.Message}",
+                CloseButtonText = "OK",
+                XamlRoot = this.XamlRoot
+            };
+            await dialog.ShowAsync();
         }
     }
+    
+    private void OnCancelClicked(object sender, RoutedEventArgs e)
+    {
+        if (Frame.CanGoBack)
+        {
+            Frame.GoBack();
+        }
+        else
+        {
+            Frame.Navigate(typeof(VaultPage));
+        }
+    }
+
+    private void OnVaultNameEntryLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is TextBox textBox)
+        {
+            var deleteButton = FindChild<Button>(textBox, "DeleteButton");
+            if (deleteButton is not null)
+            {
+                deleteButton.Width = 0;
+                deleteButton.Height = 0;
+                deleteButton.Opacity = 0;
+                deleteButton.IsHitTestVisible = false;
+                deleteButton.Margin = new Thickness(0);
+            }
+        }
+    }
+
+    private static T? FindChild<T>(DependencyObject parent, string childName) where T : FrameworkElement
+    {
+        if (parent is null)
+        {
+            return null;
+        }
+
+        int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < childrenCount; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T frameworkElement && frameworkElement.Name == childName)
+            {
+                return frameworkElement;
+            }
+
+            var result = FindChild<T>(child, childName);
+            if (result is not null)
+            {
+                return result;
+            }
+        }
+        return null;
+    }
 }
+

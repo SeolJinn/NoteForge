@@ -1,24 +1,27 @@
-﻿using NoteForge.Services;
-using NoteForge.Views;
+﻿using Microsoft.UI.Xaml;
+using NoteForge.Services;
 
-namespace NoteForge;
-
-public partial class App : Application
+namespace NoteForge
 {
-    public App(IServiceProvider services)
+    public partial class App : Application
     {
-        InitializeComponent();
-        Services = services;
-    }
-    
-    public IServiceProvider Services { get; }
+        public static Window MainWindow { get; private set; } = null!;
+        public static INoteService NoteService { get; private set; } = null!;
+        public static ITabManager TabManager { get; private set; } = null!;
 
-    protected override Window CreateWindow(IActivationState? activationState)
-    {
-        var window = new Window(new NavigationPage(new VaultPage(Services.GetRequiredService<INoteService>(), Services.GetRequiredService<ITabManager>())));
+        public App()
+        {
+            this.InitializeComponent();
+            
+            // Initialize Services
+            NoteService = new NoteService();
+            TabManager = new TabManager();
+        }
 
-        //TODO: Add some sort of resizing mechanism for better UI pages
-
-        return window;
+        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+        {
+            MainWindow = new MainWindow();
+            MainWindow.Activate();
+        }
     }
 }

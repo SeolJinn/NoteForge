@@ -1,9 +1,10 @@
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace NoteForge.Models;
 
-public class Tab : INotifyPropertyChanged
+public partial class Tab : INotifyPropertyChanged
 {
     private bool _isDirty;
     private bool _isActive;

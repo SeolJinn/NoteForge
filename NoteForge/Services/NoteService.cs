@@ -1,6 +1,12 @@
-using NoteForge.Models;
-using CommunityToolkit.Maui.Storage;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
+using NoteForge.Models;
+using Windows.Storage;
+using Windows.Storage.Pickers;
 
 namespace NoteForge.Services;
 
@@ -21,14 +27,14 @@ public class NoteService : INoteService
     private const string VaultPathKey = "VaultPath";
     private const string RecentVaultsKey = "RecentVaults";
     
-    public string CurrentNotebookPath { get; private set; }
+    public string CurrentNotebookPath { get; private set; } = string.Empty;
 
     public bool IsConfigured => !string.IsNullOrEmpty(CurrentNotebookPath) && Directory.Exists(CurrentNotebookPath);
 
     public NoteService()
     {
-        // Load from Preferences
-        CurrentNotebookPath = Preferences.Get(VaultPathKey, string.Empty);
+        // Load from LocalSettings
+        CurrentNotebookPath = GetSetting(VaultPathKey, string.Empty);
     }
 
     public async Task<IEnumerable<Note>> GetNotesAsync()
@@ -48,7 +54,7 @@ public class NoteService : INoteService
             {
                 var note = new Note
                 {
-                    Filename = Path.GetFileName(file),
+                    Filename = Path.GetFileNameWithoutExtension(file),
                     FilePath = file,
                     Date = File.GetLastWriteTime(file),
                     Text = await File.ReadAllTextAsync(file)
@@ -68,10 +74,22 @@ public class NoteService : INoteService
     {
         try
         {
-            var result = await FolderPicker.Default.PickAsync(CancellationToken.None);
-            if (result.IsSuccessful)
+            var picker = new FolderPicker
             {
-                SetVaultPath(result.Folder.Path);
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+            };
+            picker.FileTypeFilter.Add("*");
+
+            if (App.MainWindow is not null)
+            {
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+            }
+
+            var folder = await picker.PickSingleFolderAsync();
+            if (folder is not null)
+            {
+                SetVaultPath(folder.Path);
                 return CurrentNotebookPath;
             }
         }
@@ -86,13 +104,13 @@ public class NoteService : INoteService
     public void SetVaultPath(string path)
     {
         CurrentNotebookPath = path;
-        Preferences.Set(VaultPathKey, path);
+        SetSetting(VaultPathKey, path);
         AddToRecentVaults(path);
     }
 
     public List<VaultInfo> GetRecentVaults()
     {
-        string json = Preferences.Get(RecentVaultsKey, "[]");
+        string json = GetSetting(RecentVaultsKey, "[]");
 
         try
         {
@@ -106,7 +124,10 @@ public class NoteService : INoteService
 
     public async Task SaveNoteAsync(Note note)
     {
-        if (string.IsNullOrEmpty(note.FilePath)) return;
+        if (string.IsNullOrEmpty(note.FilePath))
+        {
+            return;
+        }
 
         try
         {
@@ -121,10 +142,10 @@ public class NoteService : INoteService
     public async Task<bool> RenameNoteAsync(Note note, string newName)
     {
         if (string.IsNullOrWhiteSpace(newName) || note is null || string.IsNullOrEmpty(note.FilePath))
+        {
             return false;
+        }
 
-        // Ensure .md extension if it's missing (assuming we want to keep it consistent)
-        // If the user provides "Note.md", we keep it. If "Note", we add .md
         if (!newName.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
             newName += ".md";
 
@@ -133,21 +154,22 @@ public class NoteService : INoteService
 
         var newPath = Path.Combine(directory, newName);
 
-        // If the name hasn't changed (case insensitive check perhaps? Windows is insensitive, Linux sensitive), just return true
         if (string.Equals(note.FilePath, newPath, StringComparison.OrdinalIgnoreCase))
+        {
             return true;
+        }
 
         if (File.Exists(newPath))
-            return false; // File already exists
+        {
+            return false;
+        }
 
         try
         {
-            // File.Move can also just rename
             File.Move(note.FilePath, newPath);
             
-            // Update note properties
             note.FilePath = newPath;
-            note.Filename = newName;
+            note.Filename = Path.GetFileNameWithoutExtension(newPath);
             
             return true;
         }
@@ -162,10 +184,8 @@ public class NoteService : INoteService
     {
         var recent = GetRecentVaults();
         
-        // Remove existing entry if present (to update timestamp/position)
         recent.RemoveAll(v => v.Path.Equals(path, StringComparison.OrdinalIgnoreCase));
 
-        // Add to top
         recent.Insert(0, new VaultInfo 
         { 
             Name = new DirectoryInfo(path).Name, 
@@ -173,13 +193,25 @@ public class NoteService : INoteService
             LastAccessed = DateTime.Now 
         });
 
-        // Keep only last 5
         if (recent.Count > 5)
         {
             recent = [.. recent.Take(5)];
         }
 
         string json = JsonSerializer.Serialize(recent);
-        Preferences.Set(RecentVaultsKey, json);
+        SetSetting(RecentVaultsKey, json);
+    }
+
+    private static void SetSetting(string key, string value)
+    {
+        var localSettings = ApplicationData.Current.LocalSettings;
+        localSettings.Values[key] = value;
+    }
+
+    private static string GetSetting(string key, string defaultValue)
+    {
+        var localSettings = ApplicationData.Current.LocalSettings;
+        return localSettings.Values.TryGetValue(key, out var value) ? (string)value : defaultValue;
     }
 }
+

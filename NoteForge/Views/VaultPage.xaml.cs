@@ -1,49 +1,53 @@
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
 using NoteForge.Models;
 using NoteForge.Services;
+using System;
+using System.IO;
+using System.Linq;
 
 namespace NoteForge.Views;
 
-public partial class VaultPage : ContentPage
+public sealed partial class VaultPage : Page
 {
     private readonly INoteService _noteService;
-    private readonly ITabManager _tabManager;
 
-    public VaultPage(INoteService noteService, ITabManager tabManager)
+    public VaultPage()
     {
         InitializeComponent();
-        _noteService = noteService;
-        _tabManager = tabManager;
+        _noteService = App.NoteService;
     }
 
-    protected override void OnAppearing()
+    protected override void OnNavigatedTo(NavigationEventArgs e)
     {
-        base.OnAppearing();
+        base.OnNavigatedTo(e);
         LoadRecentVaults();
     }
 
     private void LoadRecentVaults()
     {
         var recentVaults = _noteService.GetRecentVaults();
-        
+
         if (recentVaults.Count > 0)
         {
             RecentVaultsCollection.ItemsSource = recentVaults;
-            RecentVaultsCollection.IsVisible = true;
-            EmptyStateLabel.IsVisible = false;
+            RecentVaultsCollection.Visibility = Visibility.Visible;
+            EmptyStateLabel.Visibility = Visibility.Collapsed;
         }
         else
         {
-            RecentVaultsCollection.IsVisible = false;
-            EmptyStateLabel.IsVisible = true;
+            RecentVaultsCollection.Visibility = Visibility.Collapsed;
+            EmptyStateLabel.Visibility = Visibility.Visible;
         }
     }
 
-    private async void OnCreateVaultClicked(object sender, EventArgs e)
+    private void OnCreateVaultClicked(object sender, RoutedEventArgs e)
     {
-        await Navigation.PushAsync(new CreateVaultPage(_noteService, _tabManager));
+        Frame.Navigate(typeof(CreateVaultPage));
     }
 
-    private async void OnOpenVaultClicked(object sender, EventArgs e)
+    private async void OnOpenVaultClicked(object sender, RoutedEventArgs e)
     {
         var path = await _noteService.PickFolderAsync();
         if (!string.IsNullOrEmpty(path))
@@ -52,31 +56,35 @@ public partial class VaultPage : ContentPage
         }
     }
 
-    private void OnRecentVaultSelected(object sender, SelectionChangedEventArgs e)
+    private async void OnRecentVaultSelected(object sender, SelectionChangedEventArgs e)
     {
-        if (e.CurrentSelection.FirstOrDefault() is VaultInfo selectedVault)
+        if (e.AddedItems.FirstOrDefault() is VaultInfo selectedVault)
         {
             if (Directory.Exists(selectedVault.Path))
             {
-                Application.Current!.Dispatcher.Dispatch(() =>
-                {
-                    _noteService.SetVaultPath(selectedVault.Path);
-                    OpenMainApp();
-                });
+                _noteService.SetVaultPath(selectedVault.Path);
+                OpenMainApp();
             }
             else
             {
-                DisplayAlertAsync("Error", "Vault folder no longer exists.", "OK");
-                LoadRecentVaults(); // Refresh list
+                var dialog = new ContentDialog
+                {
+                    Title = "Error",
+                    Content = "Vault folder no longer exists.",
+                    CloseButtonText = "OK",
+                    XamlRoot = this.XamlRoot
+                };
+                await dialog.ShowAsync();
+                LoadRecentVaults();
             }
-            
-            // Clear selection
+
             RecentVaultsCollection.SelectedItem = null;
         }
     }
 
     private void OpenMainApp()
     {
-        Application.Current!.Windows[0].Page = new NavigationPage(new WorkspacePage(_noteService, _tabManager));
+        Frame.Navigate(typeof(WorkspacePage));
     }
 }
+

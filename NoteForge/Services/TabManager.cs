@@ -1,6 +1,7 @@
+using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using NoteForge.Models;
-using Tab = NoteForge.Models.Tab;
 
 namespace NoteForge.Services;
 
@@ -14,13 +15,14 @@ public interface ITabManager
     void CloseTab(Tab tab);
     void ActivateTab(Tab tab);
     void SetDirty(string filePath, bool isDirty);
+    void ReorderTab(Tab tab, int newIndex);
 }
 
 public class TabManager : ITabManager
 {
     private Tab? _activeTab;
 
-    public ObservableCollection<Tab> Tabs { get; } = new();
+    public ObservableCollection<Tab> Tabs { get; } = [];
 
     public Tab? ActiveTab
     {
@@ -29,12 +31,12 @@ public class TabManager : ITabManager
         {
             if (_activeTab != value)
             {
-                if (_activeTab != null)
+                if (_activeTab is not null)
                     _activeTab.IsActive = false;
 
                 _activeTab = value;
 
-                if (_activeTab != null)
+                if (_activeTab is not null)
                     _activeTab.IsActive = true;
 
                 ActiveTabChanged?.Invoke(this, _activeTab);
@@ -46,12 +48,14 @@ public class TabManager : ITabManager
 
     public void OpenTab(Note note)
     {
-        if (note == null || string.IsNullOrEmpty(note.FilePath))
+        if (note is null || string.IsNullOrEmpty(note.FilePath))
+        {
             return;
+        }
 
         var existingTab = Tabs.FirstOrDefault(t => t.FilePath == note.FilePath);
 
-        if (existingTab != null)
+        if (existingTab is not null)
         {
             ActivateTab(existingTab);
         }
@@ -60,7 +64,7 @@ public class TabManager : ITabManager
             var newTab = new Tab
             {
                 FilePath = note.FilePath,
-                DisplayName = note.Filename, // Or Path.GetFileName(note.FilePath)
+                DisplayName = note.Filename,
                 IsDirty = false,
                 IsActive = false
             };
@@ -72,18 +76,18 @@ public class TabManager : ITabManager
 
     public void CloseTab(Tab tab)
     {
-        if (!Tabs.Contains(tab)) return;
+        if (!Tabs.Contains(tab))
+        {
+            return;
+        }
 
         int index = Tabs.IndexOf(tab);
         Tabs.Remove(tab);
 
         if (tab == ActiveTab)
         {
-            // Activate nearest neighbor
             if (Tabs.Count > 0)
             {
-                // Try to select the one at the same index (next one that shifted left)
-                // or the last one if we closed the last one.
                 var nextIndex = Math.Min(index, Tabs.Count - 1);
                 ActivateTab(Tabs[nextIndex]);
             }
@@ -105,10 +109,26 @@ public class TabManager : ITabManager
     public void SetDirty(string filePath, bool isDirty)
     {
         var tab = Tabs.FirstOrDefault(t => t.FilePath == filePath);
-        if (tab != null)
+        if (tab is not null)
         {
             tab.IsDirty = isDirty;
         }
+    }
+
+    public void ReorderTab(Tab tab, int newIndex)
+    {
+        if (tab is null || newIndex < 0 || newIndex >= Tabs.Count)
+        {
+            return;
+        }
+
+        int oldIndex = Tabs.IndexOf(tab);
+        if (oldIndex == -1 || oldIndex == newIndex)
+        { 
+            return;
+        }
+
+        Tabs.Move(oldIndex, newIndex);
     }
 }
 
