@@ -1,8 +1,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using NoteForge.Interfaces;
 using NoteForge.Models;
-using NoteForge.Services;
 using System;
 using System.IO;
 using System.Linq;
@@ -12,6 +12,9 @@ namespace NoteForge.Views;
 public sealed partial class VaultPage : Page
 {
     private readonly INoteService _noteService;
+    private bool _isInVaultManager;
+
+    public event EventHandler<string>? VaultOpened;
 
     public VaultPage()
     {
@@ -22,7 +25,18 @@ public sealed partial class VaultPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        _isInVaultManager = e.Parameter is bool isManager && isManager;
         LoadRecentVaults();
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        
+        if (_isInVaultManager && e.Content is CreateVaultPage createPage)
+        {
+            createPage.VaultCreated += (s, path) => VaultOpened?.Invoke(this, path);
+        }
     }
 
     private void LoadRecentVaults()
@@ -44,7 +58,7 @@ public sealed partial class VaultPage : Page
 
     private void OnCreateVaultClicked(object sender, RoutedEventArgs e)
     {
-        Frame.Navigate(typeof(CreateVaultPage));
+        Frame.Navigate(typeof(CreateVaultPage), _isInVaultManager);
     }
 
     private async void OnOpenVaultClicked(object sender, RoutedEventArgs e)
@@ -52,7 +66,7 @@ public sealed partial class VaultPage : Page
         var path = await _noteService.PickFolderAsync();
         if (!string.IsNullOrEmpty(path))
         {
-            OpenMainApp();
+            HandleVaultOpened(path);
         }
     }
 
@@ -63,7 +77,7 @@ public sealed partial class VaultPage : Page
             if (Directory.Exists(selectedVault.Path))
             {
                 _noteService.SetVaultPath(selectedVault.Path);
-                OpenMainApp();
+                HandleVaultOpened(selectedVault.Path);
             }
             else
             {
@@ -82,9 +96,15 @@ public sealed partial class VaultPage : Page
         }
     }
 
-    private void OpenMainApp()
+    private void HandleVaultOpened(string path)
     {
-        Frame.Navigate(typeof(WorkspacePage));
+        if (_isInVaultManager)
+        {
+            VaultOpened?.Invoke(this, path);
+        }
+        else
+        {
+            Frame.Navigate(typeof(WorkspacePage));
+        }
     }
 }
-

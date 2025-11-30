@@ -3,7 +3,8 @@ using System.IO;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using NoteForge.Services;
+using Microsoft.UI.Xaml.Navigation;
+using NoteForge.Interfaces;
 using Windows.Storage.Pickers;
 
 namespace NoteForge.Views;
@@ -12,11 +13,20 @@ public sealed partial class CreateVaultPage : Page
 {
     private readonly INoteService _noteService;
     private string? _selectedPath;
+    private bool _isInVaultManager;
+
+    public event EventHandler<string>? VaultCreated;
 
     public CreateVaultPage()
     {
         InitializeComponent();
         _noteService = App.NoteService;
+    }
+
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        _isInVaultManager = e.Parameter is bool isManager && isManager;
     }
 
     private async void OnBrowseClicked(object sender, RoutedEventArgs e)
@@ -78,7 +88,14 @@ public sealed partial class CreateVaultPage : Page
             
             _noteService.SetVaultPath(fullPath);
             
-            Frame.Navigate(typeof(WorkspacePage));
+            if (_isInVaultManager)
+            {
+                VaultCreated?.Invoke(this, fullPath);
+            }
+            else
+            {
+                Frame.Navigate(typeof(WorkspacePage));
+            }
         }
         catch (Exception ex)
         {
@@ -146,4 +163,3 @@ public sealed partial class CreateVaultPage : Page
         return null;
     }
 }
-

@@ -1,22 +1,10 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using NoteForge.Interfaces;
 using NoteForge.Models;
 
 namespace NoteForge.Services;
-
-public interface ITabManager
-{
-    ObservableCollection<Tab> Tabs { get; }
-    Tab? ActiveTab { get; }
-    event EventHandler<Tab?>? ActiveTabChanged;
-
-    void OpenTab(Note note);
-    void CloseTab(Tab tab);
-    void ActivateTab(Tab tab);
-    void SetDirty(string filePath, bool isDirty);
-    void ReorderTab(Tab tab, int newIndex);
-}
 
 public class TabManager : ITabManager
 {
@@ -59,6 +47,15 @@ public class TabManager : ITabManager
         {
             ActivateTab(existingTab);
         }
+        else if (ActiveTab?.IsNewTab is true)
+        {
+            ActiveTab.FilePath = note.FilePath;
+            ActiveTab.DisplayName = note.Filename;
+            ActiveTab.IsNewTab = false;
+            ActiveTab.IsDirty = false;
+
+            ActiveTabChanged?.Invoke(this, ActiveTab);
+        }
         else
         {
             var newTab = new Tab
@@ -66,12 +63,29 @@ public class TabManager : ITabManager
                 FilePath = note.FilePath,
                 DisplayName = note.Filename,
                 IsDirty = false,
-                IsActive = false
+                IsActive = false,
+                IsNewTab = false
             };
 
             Tabs.Add(newTab);
             ActivateTab(newTab);
         }
+    }
+
+    public Tab OpenNewTab()
+    {
+        var newTab = new Tab
+        {
+            FilePath = string.Empty,
+            DisplayName = "New tab",
+            IsDirty = false,
+            IsActive = false,
+            IsNewTab = true
+        };
+
+        Tabs.Add(newTab);
+        ActivateTab(newTab);
+        return newTab;
     }
 
     public void CloseTab(Tab tab)
@@ -93,8 +107,12 @@ public class TabManager : ITabManager
             }
             else
             {
-                ActiveTab = null;
+                OpenNewTab();
             }
+        }
+        else if (Tabs.Count == 0)
+        {
+            OpenNewTab();
         }
     }
 
@@ -131,4 +149,3 @@ public class TabManager : ITabManager
         Tabs.Move(oldIndex, newIndex);
     }
 }
-

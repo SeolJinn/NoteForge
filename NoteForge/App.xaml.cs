@@ -1,4 +1,8 @@
-﻿using Microsoft.UI.Xaml;
+﻿using System;
+using Mediator;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml;
+using NoteForge.Interfaces;
 using NoteForge.Services;
 
 namespace NoteForge
@@ -6,16 +10,31 @@ namespace NoteForge
     public partial class App : Application
     {
         public static Window MainWindow { get; private set; } = null!;
-        public static INoteService NoteService { get; private set; } = null!;
-        public static ITabManager TabManager { get; private set; } = null!;
+        public static IServiceProvider Services { get; private set; } = null!;
+        public static INoteService NoteService => Services.GetRequiredService<INoteService>();
+        public static ITabManager TabManager => Services.GetRequiredService<ITabManager>();
+        public static IMarkdownPreviewService PreviewService => Services.GetRequiredService<IMarkdownPreviewService>();
+        public static IMediator Mediator => Services.GetRequiredService<IMediator>();
 
         public App()
         {
             this.InitializeComponent();
-            
-            // Initialize Services
-            NoteService = new NoteService();
-            TabManager = new TabManager();
+            Services = ConfigureServices();
+        }
+
+        private static IServiceProvider ConfigureServices()
+        {
+            var services = new ServiceCollection();
+
+            // Register services
+            services.AddSingleton<INoteService, NoteService>();
+            services.AddSingleton<ITabManager, TabManager>();
+            services.AddSingleton<IMarkdownPreviewService, MarkdownPreviewService>();
+
+            // Register Mediator
+            services.AddMediator();
+
+            return services.BuildServiceProvider();
         }
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)

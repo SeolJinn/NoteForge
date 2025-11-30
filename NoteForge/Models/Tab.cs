@@ -8,11 +8,25 @@ public partial class Tab : INotifyPropertyChanged
 {
     private bool _isDirty;
     private bool _isActive;
+    private bool _isNewTab;
     private string _displayName = string.Empty;
 
     public string Id { get; } = Guid.NewGuid().ToString();
 
     public string FilePath { get; set; } = string.Empty;
+
+    public bool IsNewTab
+    {
+        get => _isNewTab;
+        set
+        {
+            if (_isNewTab != value)
+            {
+                _isNewTab = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     public string DisplayName
     {
