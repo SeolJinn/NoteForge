@@ -6,8 +6,6 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using NoteForge.Interfaces;
 using NoteForge.Models;
-using Windows.Storage;
-using Windows.Storage.Pickers;
 
 namespace NoteForge.Services;
 
@@ -31,30 +29,13 @@ public class NoteService : INoteService
 
     public async Task<string?> PickFolderAsync()
     {
-        try
+        var dialogService = App.DialogService;
+        var path = await dialogService.PickFolderAsync();
+        
+        if (!string.IsNullOrEmpty(path))
         {
-            var picker = new FolderPicker
-            {
-                SuggestedStartLocation = PickerLocationId.DocumentsLibrary
-            };
-            picker.FileTypeFilter.Add("*");
-
-            if (App.MainWindow is not null)
-            {
-                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-                WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-            }
-
-            var folder = await picker.PickSingleFolderAsync();
-            if (folder is not null)
-            {
-                SetVaultPath(folder.Path);
-                return CurrentNotebookPath;
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Error picking folder: {ex.Message}");
+            SetVaultPath(path);
+            return CurrentNotebookPath;
         }
 
         return null;
@@ -105,13 +86,13 @@ public class NoteService : INoteService
 
     private static void SetSetting(string key, string value)
     {
-        var localSettings = ApplicationData.Current.LocalSettings;
+        var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
         localSettings.Values[key] = value;
     }
 
     private static string GetSetting(string key, string defaultValue)
     {
-        var localSettings = ApplicationData.Current.LocalSettings;
+        var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
         return localSettings.Values.TryGetValue(key, out var value) ? (string)value : defaultValue;
     }
 }

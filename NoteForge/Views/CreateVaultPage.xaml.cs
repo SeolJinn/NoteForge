@@ -4,62 +4,38 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
-using NoteForge.Interfaces;
-using Windows.Storage.Pickers;
 
 namespace NoteForge.Views;
 
-public sealed partial class CreateVaultPage : Page
+public sealed partial class CreateVaultPage : VaultPageBase
 {
-    private readonly INoteService _noteService;
     private string? _selectedPath;
-    private bool _isInVaultManager;
-
-    public event EventHandler<string>? VaultCreated;
 
     public CreateVaultPage()
     {
         InitializeComponent();
-        _noteService = App.NoteService;
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        _isInVaultManager = e.Parameter is bool isManager && isManager;
     }
 
     private async void OnBrowseClicked(object sender, RoutedEventArgs e)
     {
         try 
         {
-            var picker = new FolderPicker
+            var path = await _dialogService.PickFolderAsync();
+            if (!string.IsNullOrEmpty(path))
             {
-                SuggestedStartLocation = PickerLocationId.DocumentsLibrary
-            };
-            picker.FileTypeFilter.Add("*");
-
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
-            WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
-
-            var folder = await picker.PickSingleFolderAsync();
-            if (folder is not null)
-            {
-                _selectedPath = folder.Path;
+                _selectedPath = path;
                 PathLabel.Text = _selectedPath;
                 ValidateForm();
             }
         }
         catch (Exception ex)
         {
-            var dialog = new ContentDialog
-            {
-                Title = "Error",
-                Content = $"Failed to pick folder: {ex.Message}",
-                CloseButtonText = "OK",
-                XamlRoot = this.XamlRoot
-            };
-            await dialog.ShowAsync();
+            await _dialogService.ShowErrorAsync($"Failed to pick folder: {ex.Message}", XamlRoot);
         }
     }
 
@@ -87,26 +63,11 @@ public sealed partial class CreateVaultPage : Page
             }
             
             _noteService.SetVaultPath(fullPath);
-            
-            if (_isInVaultManager)
-            {
-                VaultCreated?.Invoke(this, fullPath);
-            }
-            else
-            {
-                Frame.Navigate(typeof(WorkspacePage));
-            }
+            HandleVaultOpened(fullPath);
         }
         catch (Exception ex)
         {
-            var dialog = new ContentDialog
-            {
-                Title = "Error",
-                Content = $"Failed to create vault: {ex.Message}",
-                CloseButtonText = "OK",
-                XamlRoot = this.XamlRoot
-            };
-            await dialog.ShowAsync();
+            await _dialogService.ShowErrorAsync($"Failed to create vault: {ex.Message}", XamlRoot);
         }
     }
     

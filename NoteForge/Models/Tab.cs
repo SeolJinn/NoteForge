@@ -1,10 +1,8 @@
 using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace NoteForge.Models;
 
-public partial class Tab : INotifyPropertyChanged
+public partial class Tab : ObservableObject
 {
     private bool _isDirty;
     private bool _isActive;
@@ -18,60 +16,24 @@ public partial class Tab : INotifyPropertyChanged
     public bool IsNewTab
     {
         get => _isNewTab;
-        set
-        {
-            if (_isNewTab != value)
-            {
-                _isNewTab = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _isNewTab, value);
     }
 
     public string DisplayName
     {
         get => _displayName;
-        set
-        {
-            if (_displayName != value)
-            {
-                _displayName = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _displayName, value);
     }
 
     public bool IsDirty
     {
         get => _isDirty;
-        set
-        {
-            if (_isDirty != value)
-            {
-                _isDirty = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _isDirty, value);
     }
 
     public bool IsActive
     {
         get => _isActive;
-        set
-        {
-            if (_isActive != value)
-            {
-                _isActive = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        set => SetProperty(ref _isActive, value);
     }
 }
-

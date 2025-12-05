@@ -19,6 +19,7 @@ public sealed partial class WorkspacePage : Page
     private readonly INoteService _noteService;
     private readonly ITabManager _tabManager;
     private readonly IMarkdownPreviewService _previewService;
+    private readonly IDialogService _dialogService;
     private readonly IMediator _mediator;
     private Note? _selectedNote;
     private CancellationTokenSource? _saveCts;
@@ -32,6 +33,7 @@ public sealed partial class WorkspacePage : Page
         _noteService = App.NoteService;
         _tabManager = App.TabManager;
         _previewService = App.PreviewService;
+        _dialogService = App.DialogService;
         _mediator = App.Mediator;
 
         TabsCollection.ItemsSource = _tabManager.Tabs;
@@ -97,6 +99,14 @@ public sealed partial class WorkspacePage : Page
         UpdateEditorState();
     }
 
+    private async Task ResetWorkspaceAsync()
+    {
+        _tabManager.Tabs.Clear();
+        SetSelectedNote(null);
+        UpdateVaultName();
+        await LoadNotes();
+    }
+
     private void OnVaultSelectorClicked(object sender, RoutedEventArgs e)
     {
          //Flyout opens automatically via Button.Flyout
@@ -128,21 +138,11 @@ public sealed partial class WorkspacePage : Page
             if (Directory.Exists(selectedVault.Path))
             {
                 _noteService.SetVaultPath(selectedVault.Path);
-                _tabManager.Tabs.Clear();
-                SetSelectedNote(null);
-                UpdateVaultName();
-                await LoadNotes();
+                await ResetWorkspaceAsync();
             }
             else
             {
-                var dialog = new ContentDialog
-                {
-                    Title = "Error",
-                    Content = "Vault folder no longer exists.",
-                    CloseButtonText = "OK",
-                    XamlRoot = this.XamlRoot
-                };
-                await dialog.ShowAsync();
+                await _dialogService.ShowErrorAsync("Vault folder no longer exists.", XamlRoot);
             }
         }
     }
@@ -154,13 +154,7 @@ public sealed partial class WorkspacePage : Page
         var vaultWindow = new VaultManagerWindow();
         vaultWindow.VaultSelected += (s, path) =>
         {
-            DispatcherQueue.TryEnqueue(async () =>
-            {
-                _tabManager.Tabs.Clear();
-                SetSelectedNote(null);
-                UpdateVaultName();
-                await LoadNotes();
-            });
+            DispatcherQueue.TryEnqueue(async () => await ResetWorkspaceAsync());
         };
         vaultWindow.Activate();
     }

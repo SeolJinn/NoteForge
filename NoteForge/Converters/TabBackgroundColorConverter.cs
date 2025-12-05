@@ -1,12 +1,11 @@
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Data;
 using System;
+using Microsoft.UI.Xaml;
 
 namespace NoteForge.Converters;
 
-public partial class TabBackgroundColorConverter : IValueConverter
+public partial class TabBackgroundColorConverter : ValueConverterBase
 {
-    public object Convert(object value, Type targetType, object parameter, string language)
+    public override object Convert(object value, Type targetType, object parameter, string language)
     {
         if (value is bool isActive)
         {
@@ -19,10 +18,4 @@ public partial class TabBackgroundColorConverter : IValueConverter
 
         return Application.Current.Resources["TopBar"];
     }
-
-    public object ConvertBack(object value, Type targetType, object parameter, string language)
-    {
-        throw new NotImplementedException();
-    }
 }
-

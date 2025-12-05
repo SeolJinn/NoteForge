@@ -1,10 +1,11 @@
 using System;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace NoteForge.Models;
 
-public class Note : INotifyPropertyChanged
+public partial class Note : ObservableObject
 {
     private string _filename = string.Empty;
     private string _text = string.Empty;
@@ -15,73 +16,52 @@ public class Note : INotifyPropertyChanged
     public bool IsSelected
     {
         get => _isSelected;
-        set
-        {
-            if (_isSelected != value)
-            {
-                _isSelected = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _isSelected, value);
     }
 
     public string Filename
     {
         get => _filename;
-        set
-        {
-            if (_filename != value)
-            {
-                _filename = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _filename, value);
     }
 
     public string Text
     {
         get => _text;
-        set
-        {
-            if (_text != value)
-            {
-                _text = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _text, value);
     }
 
     public DateTime Date
     {
         get => _date;
-        set
-        {
-            if (_date != value)
-            {
-                _date = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _date, value);
     }
 
     public string FilePath
     {
         get => _filePath;
-        set
-        {
-            if (_filePath != value)
-            {
-                _filePath = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetProperty(ref _filePath, value);
     }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    public static Note FromFile(string filePath)
     {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        return new Note
+        {
+            FilePath = filePath,
+            Filename = Path.GetFileNameWithoutExtension(filePath),
+            Text = File.ReadAllText(filePath),
+            Date = File.GetLastWriteTime(filePath)
+        };
+    }
+
+    public static async Task<Note> FromFileAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        return new Note
+        {
+            FilePath = filePath,
+            Filename = Path.GetFileNameWithoutExtension(filePath),
+            Text = await File.ReadAllTextAsync(filePath, cancellationToken),
+            Date = File.GetLastWriteTime(filePath)
+        };
     }
 }
-

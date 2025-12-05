@@ -13,22 +13,11 @@
     <Page.Resources>
         <converters:TabBackgroundColorConverter x:Key="TabBackgroundColorConverter"/>
         <converters:SidebarBackgroundColorConverter x:Key="SidebarBackgroundColorConverter"/>
-        
+
+        <!-- Use transparent text control background for this page -->
         <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
         <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
         <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
-        <SolidColorBrush x:Key="TextControlForeground" Color="#DADADA" />
-        <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#DADADA" />
-        <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#DADADA" />
-        <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
-        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
-        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
-        <SolidColorBrush x:Key="TextControlSelectionHighlightColor" Color="#007ACC" Opacity="0.5" />
-        <SolidColorBrush x:Key="TextControlSelectionForegroundBrush" Color="#FFFFFF" />
-        
-        <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#B3B3B3" />
-        <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#B3B3B3" />
-        <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#B3B3B3" />
     </Page.Resources>
 
     <Grid RowDefinitions="Auto, *" Padding="0">
@@ -61,7 +50,7 @@
 
             <!-- Tab Bar Container -->
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
-                
+
                 <ListView x:Name="TabsCollection"
                           ScrollViewer.HorizontalScrollMode="Auto"
                           ScrollViewer.HorizontalScrollBarVisibility="Hidden"
@@ -86,7 +75,7 @@
                             <ItemsStackPanel Orientation="Horizontal" />
                         </ItemsPanelTemplate>
                     </ListView.ItemsPanel>
-                    
+
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
                             <Setter Property="Padding" Value="0"/>
@@ -105,7 +94,7 @@
                                     VerticalAlignment="Bottom"
                                     BorderBrush="{StaticResource Separator}"
                                     BorderThickness="1,1,1,0">
-                                
+
                                 <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="6" VerticalAlignment="Center" Width="180">
                                     <TextBlock Grid.Column="0"
                                                Text="{x:Bind DisplayName, Mode=OneWay}"
@@ -122,7 +111,7 @@
                                                VerticalAlignment="Center"
                                                Margin="0,-2,0,0"/>
 
-                                <Button Grid.Column="2"
+                                    <Button Grid.Column="2"
                                                 Content="✕"
                                                 Background="Transparent"
                                                 BorderThickness="0"
@@ -135,19 +124,19 @@
                                                 Click="OnCloseTabClicked"
                                                 Tag="{x:Bind}"
                                                 VerticalAlignment="Center">
-                                    <Button.Resources>
-                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
-                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
-                                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
-                                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
-                                    </Button.Resources>
-                                </Button>
-                            </Grid>
+                                        <Button.Resources>
+                                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                                            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                                            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                                        </Button.Resources>
+                                    </Button>
+                                </Grid>
                             </Border>
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
-                
+
                 <!-- New Tab Button -->
                 <Button Background="Transparent"
                         Width="28"
@@ -274,7 +263,7 @@
                                                FontWeight="SemiBold"
                                                Foreground="#888888"
                                                Margin="4,0,0,8"/>
-                                    
+
                                     <ListView x:Name="VaultsList"
                                               SelectionMode="Single"
                                               SelectionChanged="OnVaultSelected"
@@ -364,8 +353,7 @@
                                 VerticalAlignment="Center"
                                 Spacing="16">
                         <Button x:Name="CreateNewNoteButton"
-                                Background="Transparent"
-                                BorderThickness="0"
+                                Style="{StaticResource TransparentButtonStyle}"
                                 HorizontalAlignment="Center"
                                 Click="OnCreateNewNoteClicked">
                             <Button.Resources>
@@ -381,8 +369,7 @@
                             </TextBlock>
                         </Button>
                         <Button x:Name="GoToFileButton"
-                                Background="Transparent"
-                                BorderThickness="0"
+                                Style="{StaticResource TransparentButtonStyle}"
                                 HorizontalAlignment="Center"
                                 Click="OnGoToFileClicked">
                             <Button.Resources>
@@ -451,7 +438,7 @@
 
                         <!-- Preview Pane -->
                         <Grid Grid.Column="2" Background="{StaticResource AppBackground}" x:Name="PreviewContainer">
-                             <WebView2 x:Name="PreviewWebView" DefaultBackgroundColor="Transparent" />
+                            <WebView2 x:Name="PreviewWebView" DefaultBackgroundColor="Transparent" />
                         </Grid>
                     </Grid>
                 </Grid>
@@ -459,4 +446,3 @@
         </Grid>
     </Grid>
 </Page>
-

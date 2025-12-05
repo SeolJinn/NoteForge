@@ -26,13 +26,7 @@ public class GetNotesQueryHandler(INoteService noteService) : IRequestHandler<Ge
 
             foreach (var file in files)
             {
-                var note = new Note
-                {
-                    Filename = Path.GetFileNameWithoutExtension(file),
-                    FilePath = file,
-                    Date = File.GetLastWriteTime(file),
-                    Text = await File.ReadAllTextAsync(file, cancellationToken)
-                };
+                var note = await Note.FromFileAsync(file, cancellationToken);
                 notes.Add(note);
             }
         }

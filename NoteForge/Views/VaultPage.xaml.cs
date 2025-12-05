@@ -1,31 +1,22 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
-using NoteForge.Interfaces;
 using NoteForge.Models;
-using System;
 using System.IO;
 using System.Linq;
 
 namespace NoteForge.Views;
 
-public sealed partial class VaultPage : Page
+public sealed partial class VaultPage : VaultPageBase
 {
-    private readonly INoteService _noteService;
-    private bool _isInVaultManager;
-
-    public event EventHandler<string>? VaultOpened;
-
     public VaultPage()
     {
         InitializeComponent();
-        _noteService = App.NoteService;
     }
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        _isInVaultManager = e.Parameter is bool isManager && isManager;
         LoadRecentVaults();
     }
 
@@ -35,7 +26,7 @@ public sealed partial class VaultPage : Page
         
         if (_isInVaultManager && e.Content is CreateVaultPage createPage)
         {
-            createPage.VaultCreated += (s, path) => VaultOpened?.Invoke(this, path);
+            createPage.VaultOpened += (s, path) => RaiseVaultOpened(path);
         }
     }
 
@@ -47,12 +38,12 @@ public sealed partial class VaultPage : Page
         {
             RecentVaultsCollection.ItemsSource = recentVaults;
             RecentVaultsCollection.Visibility = Visibility.Visible;
-            EmptyStateLabel.Visibility = Visibility.Collapsed;
+            EmptyStatePanel.Visibility = Visibility.Collapsed;
         }
         else
         {
             RecentVaultsCollection.Visibility = Visibility.Collapsed;
-            EmptyStateLabel.Visibility = Visibility.Visible;
+            EmptyStatePanel.Visibility = Visibility.Visible;
         }
     }
 
@@ -63,9 +54,10 @@ public sealed partial class VaultPage : Page
 
     private async void OnOpenVaultClicked(object sender, RoutedEventArgs e)
     {
-        var path = await _noteService.PickFolderAsync();
+        var path = await _dialogService.PickFolderAsync();
         if (!string.IsNullOrEmpty(path))
         {
+            _noteService.SetVaultPath(path);
             HandleVaultOpened(path);
         }
     }
@@ -81,30 +73,11 @@ public sealed partial class VaultPage : Page
             }
             else
             {
-                var dialog = new ContentDialog
-                {
-                    Title = "Error",
-                    Content = "Vault folder no longer exists.",
-                    CloseButtonText = "OK",
-                    XamlRoot = this.XamlRoot
-                };
-                await dialog.ShowAsync();
+                await ShowVaultNotFoundErrorAsync();
                 LoadRecentVaults();
             }
 
             RecentVaultsCollection.SelectedItem = null;
-        }
-    }
-
-    private void HandleVaultOpened(string path)
-    {
-        if (_isInVaultManager)
-        {
-            VaultOpened?.Invoke(this, path);
-        }
-        else
-        {
-            Frame.Navigate(typeof(WorkspacePage));
         }
     }
 }

@@ -5,6 +5,7 @@
     xmlns:local="using:NoteForge">
     <Application.Resources>
         <ResourceDictionary>
+            <!-- Color Palette -->
             <SolidColorBrush x:Key="AppBackground" Color="#1E1E1E"/>
             <SolidColorBrush x:Key="TopBar" Color="#363636"/>
             <SolidColorBrush x:Key="SideBar" Color="#262626"/>
@@ -16,6 +17,62 @@
             <SolidColorBrush x:Key="Primary" Color="#007ACC"/>
             <SolidColorBrush x:Key="Gray500" Color="#808080"/>
             <SolidColorBrush x:Key="Gray600" Color="#606060"/>
+
+            <!-- Shared TextControl Styles (Transparent Background) -->
+            <SolidColorBrush x:Key="TransparentTextControlBackground" Color="Transparent" />
+            <SolidColorBrush x:Key="TransparentTextControlBackgroundPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="TransparentTextControlBackgroundFocused" Color="Transparent" />
+            
+            <!-- Shared TextControl Styles (Dark Background) -->
+            <SolidColorBrush x:Key="DarkTextControlBackground" Color="#2a2a2a" />
+            <SolidColorBrush x:Key="DarkTextControlBackgroundPointerOver" Color="#2a2a2a" />
+            <SolidColorBrush x:Key="DarkTextControlBackgroundFocused" Color="#2a2a2a" />
+
+            <!-- Common TextControl Foreground -->
+            <SolidColorBrush x:Key="TextControlForeground" Color="#DADADA" />
+            <SolidColorBrush x:Key="TextControlForegroundPointerOver" Color="#DADADA" />
+            <SolidColorBrush x:Key="TextControlForegroundFocused" Color="#DADADA" />
+            <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
+            <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
+            <SolidColorBrush x:Key="TextControlSelectionHighlightColor" Color="#007ACC" Opacity="0.5" />
+            <SolidColorBrush x:Key="TextControlSelectionForegroundBrush" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#B3B3B3" />
+            <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#B3B3B3" />
+            <SolidColorBrush x:Key="TextControlPlaceholderForegroundFocused" Color="#B3B3B3" />
+
+            <!-- Shared ListView Transparent Style -->
+            <Style x:Key="TransparentListViewStyle" TargetType="ListView">
+                <Setter Property="Background" Value="Transparent"/>
+            </Style>
+
+            <!-- Shared Button Styles -->
+            <Style x:Key="TransparentButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+            </Style>
+
+            <Style x:Key="SolidButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#363636"/>
+                <Setter Property="Foreground" Value="#DADADA"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="CornerRadius" Value="8"/>
+            </Style>
+
+            <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#007acc"/>
+                <Setter Property="Foreground" Value="#FFFFFF"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="CornerRadius" Value="8"/>
+            </Style>
+
+            <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="#404040"/>
+                <Setter Property="Foreground" Value="#DADADA"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="CornerRadius" Value="8"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

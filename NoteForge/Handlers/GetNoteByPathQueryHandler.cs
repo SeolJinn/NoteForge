@@ -15,14 +15,7 @@ public class GetNoteByPathQueryHandler : IRequestHandler<GetNoteByPathQueryReque
             return ValueTask.FromResult<Note?>(null);
         }
 
-        var note = new Note
-        {
-            FilePath = request.FilePath,
-            Filename = Path.GetFileNameWithoutExtension(request.FilePath),
-            Text = File.ReadAllText(request.FilePath),
-            Date = File.GetLastWriteTime(request.FilePath)
-        };
-
+        var note = Note.FromFile(request.FilePath);
         return ValueTask.FromResult<Note?>(note);
     }
 }
