@@ -1,15 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
-using NoteForge.Interfaces;
 using NoteForge.Handlers;
+using NoteForge.Interfaces;
 using NoteForge.Models;
 
 namespace NoteForge.Views;
@@ -21,9 +21,11 @@ public sealed partial class WorkspacePage : Page
     private readonly IMarkdownPreviewService _previewService;
     private readonly IDialogService _dialogService;
     private readonly IMediator _mediator;
+    private readonly ILogger<WorkspacePage> _logger;
     private Note? _selectedNote;
     private CancellationTokenSource? _saveCts;
     private CancellationTokenSource? _renameCts;
+    private CancellationTokenSource? _summaryCts;
     private bool _isLoading;
     private bool _isSyncingTitle;
 
@@ -35,51 +37,35 @@ public sealed partial class WorkspacePage : Page
         _previewService = App.PreviewService;
         _dialogService = App.DialogService;
         _mediator = App.Mediator;
+        _logger = App.LoggerFactory.CreateLogger<WorkspacePage>();
 
-        TabsCollection.ItemsSource = _tabManager.Tabs;
-        
+        TabBarControl.SetItemsSource(_tabManager.Tabs);
+
         _tabManager.ActiveTabChanged += OnActiveTabChanged;
 
-        this.Loaded += WorkspacePage_Loaded;
+        Loaded += WorkspacePage_Loaded;
     }
 
     private async void WorkspacePage_Loaded(object sender, RoutedEventArgs e)
     {
-        UpdateVaultName();
         await LoadNotes();
-    }
-
-    private void UpdateVaultName()
-    {
-        CurrentVaultName.Text = _noteService.IsConfigured 
-            ? _noteService.CurrentVaultName 
-            : "No vault selected";
     }
 
     private async Task LoadNotes()
     {
-        if (!_noteService.IsConfigured)
-        {
-            PathLabel.Text = "No vault selected";
-            NotesCollection.ItemsSource = null;
-            return;
-        }
+        var workspace = await _mediator.Send(new LoadWorkspaceQueryRequest());
 
-        PathLabel.Text = $"Path: {_noteService.CurrentNotebookPath}";
-        var sortedNotes = (await _mediator.Send(new GetNotesQueryRequest())).ToList();
-        NotesCollection.ItemsSource = sortedNotes;
+        Sidebar.SetVaultName(workspace.VaultName);
+        Sidebar.SetPathLabel(workspace.VaultPath);
+        Sidebar.SetNotesSource(workspace.Notes);
 
-        if (_tabManager.Tabs.Count == 0)
+        if (workspace.InitialNoteFilePath is not null)
         {
-            _tabManager.OpenNewTab();
-        }
-        else if (_tabManager.ActiveTab is { IsNewTab: false })
-        {
-            var activeNote = sortedNotes.FirstOrDefault(n => n.FilePath == _tabManager.ActiveTab.FilePath);
+            var activeNote = workspace.Notes.FirstOrDefault(n => n.FilePath == workspace.InitialNoteFilePath);
             if (activeNote is not null)
             {
                 SetSelectedNote(activeNote);
-                NotesCollection.SelectedItem = activeNote;
+                Sidebar.SetSelectedNote(activeNote);
             }
         }
     }
@@ -87,15 +73,6 @@ public sealed partial class WorkspacePage : Page
     private void SetSelectedNote(Note? note)
     {
         _selectedNote = note;
-
-        if (NotesCollection.ItemsSource is IEnumerable<Note> notes)
-        {
-            foreach (var n in notes)
-            {
-                n.IsSelected = n == _selectedNote || (n.FilePath == _selectedNote?.FilePath);
-            }
-        }
-
         UpdateEditorState();
     }
 
@@ -103,54 +80,24 @@ public sealed partial class WorkspacePage : Page
     {
         _tabManager.Tabs.Clear();
         SetSelectedNote(null);
-        UpdateVaultName();
         await LoadNotes();
     }
 
-    private void OnVaultSelectorClicked(object sender, RoutedEventArgs e)
+    private async void OnVaultItemClicked(object sender, VaultInfo selectedVault)
     {
-         //Flyout opens automatically via Button.Flyout
-    }
-
-    private void OnVaultFlyoutOpening(object sender, object e)
-    {
-        VaultDropdownIcon.Glyph = "\uE70E"; // Chevron up
-        var vaults = _noteService.GetRecentVaults();
-        VaultsList.ItemsSource = vaults;
-    }
-
-    private void OnVaultFlyoutClosing(FlyoutBase sender, FlyoutBaseClosingEventArgs args)
-    {
-        VaultDropdownIcon.Glyph = "\uE70D"; // Chevron down
-    }
-
-    private void OnVaultSelected(object sender, SelectionChangedEventArgs e)
-    {
-        VaultsList.SelectedItem = null;
-    }
-
-    private async void OnVaultItemClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button button && button.Tag is VaultInfo selectedVault)
+        var result = await _mediator.Send(new SwitchVaultCommandRequest(selectedVault.Path));
+        if (result.Success)
         {
-            VaultFlyout.Hide();
-
-            if (Directory.Exists(selectedVault.Path))
-            {
-                _noteService.SetVaultPath(selectedVault.Path);
-                await ResetWorkspaceAsync();
-            }
-            else
-            {
-                await _dialogService.ShowErrorAsync("Vault folder no longer exists.", XamlRoot);
-            }
+            await ResetWorkspaceAsync();
+        }
+        else
+        {
+            await _dialogService.ShowErrorAsync(result.ErrorMessage!, XamlRoot);
         }
     }
 
-    private void OnManageVaultsClicked(object sender, RoutedEventArgs e)
+    private void OnManageVaultsClicked(object sender, EventArgs e)
     {
-        VaultFlyout.Hide();
-        
         var vaultWindow = new VaultManagerWindow();
         vaultWindow.VaultSelected += (s, path) =>
         {
@@ -165,33 +112,24 @@ public sealed partial class WorkspacePage : Page
         TitleBarSidebarColumn.Width = Sidebar.Visibility is Visibility.Visible ? new GridLength(250) : GridLength.Auto;
     }
 
-    private void OnNoteSelected(object sender, SelectionChangedEventArgs e)
+    private void OnNoteSelected(object sender, Note selectedNote)
     {
-        if (e.AddedItems.FirstOrDefault() is Note selectedNote)
+        if (_tabManager.ActiveTab?.FilePath == selectedNote.FilePath)
         {
-            if (_tabManager.ActiveTab?.FilePath == selectedNote.FilePath)
-            {
-                SetSelectedNote(selectedNote);
-                return;
-            }
-            _tabManager.OpenTab(selectedNote);
+            SetSelectedNote(selectedNote);
+            return;
         }
+        _tabManager.OpenTab(selectedNote);
     }
 
-    private void OnTabSelected(object sender, SelectionChangedEventArgs e)
+    private void OnTabSelected(object sender, Tab tab)
     {
-        if (e.AddedItems.FirstOrDefault() is Tab tab)
-        {
-            _tabManager.ActivateTab(tab);
-        }
+        _tabManager.ActivateTab(tab);
     }
 
-    private void OnCloseTabClicked(object sender, RoutedEventArgs e)
+    private void OnCloseTabClicked(object sender, Tab tab)
     {
-        if (sender is Button button && button.Tag is Tab tab)
-        {
-            _tabManager.CloseTab(tab);
-        }
+        _tabManager.CloseTab(tab);
     }
 
     private void OnActiveTabChanged(object? sender, Tab? activeTab)
@@ -201,35 +139,25 @@ public sealed partial class WorkspacePage : Page
 
     private async Task HandleActiveTabChangedAsync(Tab? activeTab)
     {
-        TabsCollection.SelectedItem = activeTab;
+        TabBarControl.SetSelectedItem(activeTab);
 
         if (activeTab is null or { IsNewTab: true })
         {
-            NotesCollection.SelectedItem = null;
+            Sidebar.SetSelectedNote(null);
             SetSelectedNote(null);
             if (activeTab?.IsNewTab is true) UpdateEditorState();
             return;
         }
 
-        var notes = NotesCollection.ItemsSource as IEnumerable<Note>;
-        var note = notes?.FirstOrDefault(n => n.FilePath == activeTab.FilePath);
-
-        if (note is not null)
+        var loadedNote = await _mediator.Send(new GetNoteByPathQueryRequest(activeTab.FilePath));
+        if (loadedNote is not null)
         {
-            SetSelectedNote(note);
-            NotesCollection.SelectedItem = note;
+            SetSelectedNote(loadedNote);
+            Sidebar.SetSelectedNote(loadedNote);
         }
         else
         {
-            var loadedNote = await _mediator.Send(new GetNoteByPathQueryRequest(activeTab.FilePath));
-            if (loadedNote is not null)
-            {
-                SetSelectedNote(loadedNote);
-            }
-            else
-            {
-                _tabManager.CloseTab(activeTab);
-            }
+            _tabManager.CloseTab(activeTab);
         }
     }
 
@@ -239,68 +167,71 @@ public sealed partial class WorkspacePage : Page
         NewTabView.Visibility = showEditor ? Visibility.Collapsed : Visibility.Visible;
         EditorView.Visibility = showEditor ? Visibility.Visible : Visibility.Collapsed;
 
-        if (!showEditor) 
+        if (!showEditor)
         {
             return;
         }
 
+        _summaryCts?.Cancel();
+        EditorView.HideAiSummary();
+
         _isLoading = true;
-        NoteTitleEntry.Text = _selectedNote!.Filename;
-        NoteContentEditor.Text = _selectedNote.Text;
+        EditorView.SetTitle(_selectedNote!.Filename);
+        EditorView.SetContent(_selectedNote.Text);
         _isLoading = false;
         UpdatePreviewAsync();
     }
 
     private async void UpdatePreviewAsync()
     {
-        if (_selectedNote is null || PreviewColumn.Width.Value == 0) 
+        if (_selectedNote is null || EditorView.GetPreviewColumnWidth() == 0)
         {
             return;
         }
 
         try
         {
-            if (PreviewWebView.CoreWebView2 is null) await PreviewWebView.EnsureCoreWebView2Async();
+            var previewWebView = EditorView.GetPreviewWebView();
+            if (previewWebView.CoreWebView2 is null) await previewWebView.EnsureCoreWebView2Async();
             var html = _previewService.ConvertToHtml(_selectedNote.Text ?? "");
-            PreviewWebView.NavigateToString(_previewService.WrapInHtmlDocument(html));
+            previewWebView.NavigateToString(_previewService.WrapInHtmlDocument(html));
         }
         catch { }
     }
 
-    private void OnTogglePreviewClicked(object sender, RoutedEventArgs e)
+    private void OnTogglePreviewClicked(object sender, EventArgs e)
     {
-        var isHidden = PreviewColumn.Width.Value == 0;
-        PreviewColumn.Width = isHidden ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-        PreviewToggleBtn.Content = isHidden ? ">" : "<";
+        var isHidden = EditorView.GetPreviewColumnWidth() == 0;
+        EditorView.SetPreviewColumnWidth(isHidden ? 1 : 0);
         if (isHidden) UpdatePreviewAsync();
     }
 
-    private void OnNoteTitleTextChanged(object sender, TextChangedEventArgs e)
+    private void OnNoteTitleTextChanged(object sender, string newTitle)
     {
-        if (_isLoading || _isSyncingTitle) 
+        if (_isLoading || _isSyncingTitle)
         {
             return;
         }
-        
+
         _renameCts?.Cancel();
         _renameCts = new CancellationTokenSource();
         var token = _renameCts.Token;
 
         Task.Delay(200, token).ContinueWith(t =>
         {
-            if (t.IsCanceled) 
+            if (t.IsCanceled)
             {
                 return;
             }
-            
+
             DispatcherQueue.TryEnqueue(async () =>
             {
-                if (token.IsCancellationRequested) 
+                if (token.IsCancellationRequested)
                 {
                     return;
                 }
 
-                await RenameCurrentNote();
+                await RenameCurrentNote(newTitle);
             });
         });
     }
@@ -308,36 +239,33 @@ public sealed partial class WorkspacePage : Page
     private void SyncTitles(string title)
     {
         _isSyncingTitle = true;
-        if (NoteTitleEntry.Text != title) 
-        {
-            NoteTitleEntry.Text = title;
-        }
+        EditorView.SetTitle(title);
         _isSyncingTitle = false;
     }
 
-    private async void OnTitleUnfocused(object sender, RoutedEventArgs e)
+    private async void OnTitleUnfocused(object sender, EventArgs e)
     {
         _renameCts?.Cancel();
-        await RenameCurrentNote();
+        await RenameCurrentNote(null);
     }
 
-    private async Task RenameCurrentNote()
+    private async Task RenameCurrentNote(string? newTitle)
     {
-        if (_selectedNote is null) 
+        if (_selectedNote is null)
         {
             return;
         }
 
-        var newTitle = NoteTitleEntry.Text?.Trim();
         var currentTitle = _selectedNote.Filename;
+        newTitle = newTitle?.Trim();
 
-        if (string.IsNullOrWhiteSpace(newTitle)) 
-        { 
-            SyncTitles(currentTitle); 
-            return; 
+        if (string.IsNullOrWhiteSpace(newTitle))
+        {
+            SyncTitles(currentTitle);
+            return;
         }
 
-        if (string.Equals(newTitle, currentTitle, StringComparison.OrdinalIgnoreCase)) 
+        if (string.Equals(newTitle, currentTitle, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -350,9 +278,9 @@ public sealed partial class WorkspacePage : Page
         else SyncTitles(currentTitle);
     }
 
-    private async void OnNoteContentChanged(object sender, TextChangedEventArgs e)
+    private async void OnNoteContentChanged(object sender, string newContent)
     {
-        if (_isLoading || _selectedNote is null) 
+        if (_isLoading || _selectedNote is null)
         {
             return;
         }
@@ -365,12 +293,12 @@ public sealed partial class WorkspacePage : Page
         try
         {
             await Task.Delay(200, token);
-            if (token.IsCancellationRequested) 
+            if (token.IsCancellationRequested)
             {
                 return;
             }
 
-            _selectedNote.Text = NoteContentEditor.Text;
+            _selectedNote.Text = newContent;
             UpdatePreviewAsync();
             await _mediator.Send(new SaveNoteCommandRequest(_selectedNote), token);
             _tabManager.SetDirty(_selectedNote.FilePath, false);
@@ -378,7 +306,7 @@ public sealed partial class WorkspacePage : Page
         catch (TaskCanceledException) { }
     }
 
-    private void OnNewTabClicked(object sender, RoutedEventArgs e)
+    private void OnNewTabClicked(object sender, EventArgs e)
     {
         _tabManager.OpenNewTab();
     }
@@ -396,5 +324,48 @@ public sealed partial class WorkspacePage : Page
     private void OnGoToFileClicked(object sender, RoutedEventArgs e)
     {
         // TODO: Implement go to file functionality
+    }
+
+    private void OnAddToFavoritesClicked(object sender, EventArgs e)
+    {
+        // TODO: Implement Add to favorites functionality
+    }
+
+    private async void OnGenerateSummaryClicked(object sender, EventArgs e)
+    {
+        if (_selectedNote is null || string.IsNullOrWhiteSpace(_selectedNote.Text))
+        {
+            return;
+        }
+
+        _summaryCts?.Cancel();
+        _summaryCts = new CancellationTokenSource();
+
+        await _mediator.Send(new GenerateInlineAiSummaryCommandRequest(
+            _selectedNote,
+            OnSummaryStarted: () =>
+            {
+                EditorView.ShowAiSummary("Generating summary...");
+                EditorView.SetSummaryButtonEnabled(false);
+            },
+            OnFirstToken: () => EditorView.SetAiSummaryText(string.Empty),
+            OnTokenReceived: token => EditorView.AppendAiSummaryText(token),
+            OnSummaryCompleted: () => EditorView.SetSummaryButtonEnabled(true),
+            OnSummaryCancelled: () =>
+            {
+                EditorView.SetAiSummaryText("Summary generation cancelled.");
+                EditorView.SetSummaryButtonEnabled(true);
+            },
+            OnSummaryFailed: error =>
+            {
+                EditorView.SetAiSummaryText($"Error: {error}");
+                EditorView.SetSummaryButtonEnabled(true);
+            }), _summaryCts.Token);
+    }
+
+    private void OnCloseSummaryClicked(object sender, EventArgs e)
+    {
+        _summaryCts?.Cancel();
+        EditorView.HideAiSummary();
     }
 }

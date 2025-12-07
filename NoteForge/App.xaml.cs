@@ -1,6 +1,7 @@
 ﻿using System;
 using Mediator;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using NoteForge.Interfaces;
 using NoteForge.Services;
@@ -16,6 +17,7 @@ public partial class App : Application
     public static IMarkdownPreviewService PreviewService => Services.GetRequiredService<IMarkdownPreviewService>();
     public static IDialogService DialogService => Services.GetRequiredService<IDialogService>();
     public static IMediator Mediator => Services.GetRequiredService<IMediator>();
+    public static ILoggerFactory LoggerFactory => Services.GetRequiredService<ILoggerFactory>();
 
     public App()
     {
@@ -27,11 +29,18 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
 
+        services.AddLogging(builder =>
+        {
+            builder.SetMinimumLevel(LogLevel.Debug);
+            builder.AddDebug();
+        });
+
         // Register services
         services.AddSingleton<INoteService, NoteService>();
         services.AddSingleton<ITabManager, TabManager>();
         services.AddSingleton<IMarkdownPreviewService, MarkdownPreviewService>();
         services.AddSingleton<IDialogService, DialogService>();
+        services.AddSingleton<OllamaService>();
 
         // Register Mediator
         services.AddMediator();

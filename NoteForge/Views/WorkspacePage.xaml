@@ -5,16 +5,11 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:models="using:NoteForge.Models"
-    xmlns:converters="using:NoteForge.Converters"
+    xmlns:controls="using:NoteForge.Controls"
     mc:Ignorable="d"
     Background="{StaticResource AppBackground}">
 
     <Page.Resources>
-        <converters:TabBackgroundColorConverter x:Key="TabBackgroundColorConverter"/>
-        <converters:SidebarBackgroundColorConverter x:Key="SidebarBackgroundColorConverter"/>
-
-        <!-- Use transparent text control background for this page -->
         <SolidColorBrush x:Key="TextControlBackground" Color="Transparent" />
         <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
         <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
@@ -48,302 +43,24 @@
                         Click="OnToggleSidebarClicked"/>
             </Grid>
 
-            <!-- Tab Bar Container -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
-
-                <ListView x:Name="TabsCollection"
-                          ScrollViewer.HorizontalScrollMode="Auto"
-                          ScrollViewer.HorizontalScrollBarVisibility="Hidden"
-                          ScrollViewer.VerticalScrollMode="Disabled"
-                          VerticalAlignment="Bottom"
-                          SelectionMode="Single"
-                          SelectionChanged="OnTabSelected"
-                          CanReorderItems="True"
-                          CanDragItems="True"
-                          AllowDrop="True"
-                          Height="36">
-                    <ListView.Resources>
-                        <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent"/>
-                        <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent"/>
-                        <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent"/>
-                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent"/>
-                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent"/>
-                    </ListView.Resources>
-
-                    <ListView.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <ItemsStackPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </ListView.ItemsPanel>
-
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
-                            <Setter Property="Padding" Value="0"/>
-                            <Setter Property="Margin" Value="2,0,2,0"/>
-                            <Setter Property="MinHeight" Value="32"/>
-                            <Setter Property="VerticalAlignment" Value="Bottom"/>
-                        </Style>
-                    </ListView.ItemContainerStyle>
-
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="models:Tab">
-                            <Border Background="{x:Bind IsActive, Converter={StaticResource TabBackgroundColorConverter}, Mode=OneWay}"
-                                    CornerRadius="8,8,0,0"
-                                    Padding="12,0,4,0"
-                                    Height="32"
-                                    VerticalAlignment="Bottom"
-                                    BorderBrush="{StaticResource Separator}"
-                                    BorderThickness="1,1,1,0">
-
-                                <Grid ColumnDefinitions="*, Auto, Auto" ColumnSpacing="6" VerticalAlignment="Center" Width="180">
-                                    <TextBlock Grid.Column="0"
-                                               Text="{x:Bind DisplayName, Mode=OneWay}"
-                                               Foreground="{StaticResource TextPrimary}"
-                                               FontSize="12"
-                                               VerticalAlignment="Center"
-                                               TextTrimming="CharacterEllipsis"/>
-
-                                    <TextBlock Grid.Column="1"
-                                               Text="•"
-                                               Foreground="{StaticResource Primary}"
-                                               FontSize="18"
-                                               Visibility="{x:Bind IsDirty, Mode=OneWay}"
-                                               VerticalAlignment="Center"
-                                               Margin="0,-2,0,0"/>
-
-                                    <Button Grid.Column="2"
-                                                Content="✕"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                Foreground="{StaticResource TextSecondary}"
-                                                FontSize="10"
-                                                Padding="0"
-                                                Height="20"
-                                                Width="20"
-                                                CornerRadius="10"
-                                                Click="OnCloseTabClicked"
-                                                Tag="{x:Bind}"
-                                                VerticalAlignment="Center">
-                                        <Button.Resources>
-                                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
-                                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
-                                            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
-                                            <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
-                                        </Button.Resources>
-                                    </Button>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-
-                <!-- New Tab Button -->
-                <Button Background="Transparent"
-                        Width="28"
-                        Height="28"
-                        CornerRadius="6"
-                        Padding="0"
-                        Margin="4,0,4,4"
-                        VerticalAlignment="Bottom"
-                        Click="OnNewTabClicked">
-                    <FontIcon Glyph="&#xE710;"
-                              FontSize="12"
-                              Foreground="#B3B3B3"
-                              FontFamily="Segoe MDL2 Assets"/>
-                    <Button.Resources>
-                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#434343"/>
-                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#434343"/>
-                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
-                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
-                    </Button.Resources>
-                </Button>
-            </StackPanel>
+            <!-- Tab Bar -->
+            <controls:TabBar Grid.Column="1"
+                           x:Name="TabBarControl"
+                           TabSelected="OnTabSelected"
+                           TabClosed="OnCloseTabClicked"
+                           NewTabRequested="OnNewTabClicked"/>
         </Grid>
 
         <!-- Main Body -->
         <Grid Grid.Row="1" ColumnDefinitions="Auto, *">
 
             <!-- Sidebar -->
-            <Grid Grid.Column="0"
-                  x:Name="Sidebar"
-                  Width="250"
-                  Background="{StaticResource SideBar}"
-                  RowDefinitions="Auto, *, Auto">
-
-                <!-- Sidebar Header -->
-                <StackPanel Grid.Row="0" Padding="10" Spacing="5">
-                    <TextBlock x:Name="PathLabel" Text="Path: ..." FontSize="10" Foreground="{StaticResource Gray600}" TextTrimming="CharacterEllipsis" />
-                </StackPanel>
-
-                <!-- Notes List -->
-                <ListView Grid.Row="1" x:Name="NotesCollection" SelectionMode="Single" SelectionChanged="OnNoteSelected">
-                    <ListView.Resources>
-                        <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
-                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent" />
-                        <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent" />
-                        <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent" />
-                        <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent" />
-                    </ListView.Resources>
-                    <ListView.ItemContainerStyle>
-                        <Style TargetType="ListViewItem">
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            <Setter Property="Padding" Value="0" />
-                            <Setter Property="Margin" Value="0" />
-                        </Style>
-                    </ListView.ItemContainerStyle>
-                    <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="models:Note">
-                            <Border CornerRadius="8" 
-                                    Margin="10,2,10,2" 
-                                    Padding="15,10"
-                                    Background="{x:Bind IsSelected, Converter={StaticResource SidebarBackgroundColorConverter}, Mode=OneWay}">
-                                <TextBlock Text="{x:Bind Filename, Mode=OneWay}"
-                                           FontSize="14"
-                                           Foreground="{StaticResource TextPrimary}"
-                                           TextTrimming="CharacterEllipsis" />
-                            </Border>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-
-                <!-- Vault Manager -->
-                <Grid Grid.Row="2" Padding="10">
-                    <Button x:Name="VaultSelectorButton"
-                            HorizontalAlignment="Stretch"
-                            HorizontalContentAlignment="Left"
-                            Background="Transparent"
-                            BorderThickness="1"
-                            BorderBrush="{StaticResource Separator}"
-                            CornerRadius="6"
-                            Padding="12,10"
-                            Click="OnVaultSelectorClicked">
-                        <Button.Resources>
-                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2A2A2A"/>
-                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#333333"/>
-                            <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#404040"/>
-                        </Button.Resources>
-                        <Grid ColumnDefinitions="Auto, *, Auto">
-                            <FontIcon Grid.Column="0"
-                                      Glyph="&#xE8B7;"
-                                      FontSize="14"
-                                      Foreground="{StaticResource Primary}"
-                                      Margin="0,0,10,0"/>
-                            <TextBlock Grid.Column="1"
-                                       x:Name="CurrentVaultName"
-                                       Text="No vault selected"
-                                       FontSize="13"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource TextPrimary}"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"/>
-                            <FontIcon Grid.Column="2"
-                                      x:Name="VaultDropdownIcon"
-                                      Glyph="&#xE70D;"
-                                      FontSize="10"
-                                      Foreground="{StaticResource TextSecondary}"
-                                      Margin="8,0,0,0"/>
-                        </Grid>
-                        <Button.Flyout>
-                            <Flyout x:Name="VaultFlyout" 
-                                    Placement="Top"
-                                    Opening="OnVaultFlyoutOpening"
-                                    Closing="OnVaultFlyoutClosing">
-                                <Flyout.FlyoutPresenterStyle>
-                                    <Style TargetType="FlyoutPresenter">
-                                        <Setter Property="Background" Value="#262626"/>
-                                        <Setter Property="BorderBrush" Value="#404040"/>
-                                        <Setter Property="BorderThickness" Value="1"/>
-                                        <Setter Property="CornerRadius" Value="8"/>
-                                        <Setter Property="Padding" Value="8"/>
-                                    </Style>
-                                </Flyout.FlyoutPresenterStyle>
-                                <StackPanel Width="220" Spacing="0">
-                                    <TextBlock Text="VAULTS"
-                                               FontSize="11"
-                                               FontWeight="SemiBold"
-                                               Foreground="#888888"
-                                               Margin="4,0,0,8"/>
-
-                                    <ListView x:Name="VaultsList"
-                                              SelectionMode="Single"
-                                              SelectionChanged="OnVaultSelected"
-                                              MaxHeight="200"
-                                              Background="Transparent">
-                                        <ListView.Resources>
-                                            <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent"/>
-                                            <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent"/>
-                                            <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent"/>
-                                            <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent"/>
-                                        </ListView.Resources>
-                                        <ListView.ItemContainerStyle>
-                                            <Style TargetType="ListViewItem">
-                                                <Setter Property="Padding" Value="0"/>
-                                                <Setter Property="Margin" Value="0"/>
-                                                <Setter Property="MinHeight" Value="0"/>
-                                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                            </Style>
-                                        </ListView.ItemContainerStyle>
-                                        <ListView.ItemTemplate>
-                                            <DataTemplate x:DataType="models:VaultInfo">
-                                                <Button Background="Transparent"
-                                                        BorderThickness="0"
-                                                        Padding="0"
-                                                        HorizontalAlignment="Stretch"
-                                                        HorizontalContentAlignment="Stretch"
-                                                        CornerRadius="6"
-                                                        Tag="{x:Bind}"
-                                                        Click="OnVaultItemClicked">
-                                                    <Button.Resources>
-                                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#343434"/>
-                                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3A3A3A"/>
-                                                    </Button.Resources>
-                                                    <Grid Padding="10,8" ColumnDefinitions="Auto, *">
-                                                        <FontIcon Grid.Column="0"
-                                                                  Glyph="&#xE8B7;"
-                                                                  FontSize="12"
-                                                                  Foreground="#888888"
-                                                                  Margin="0,0,10,0"
-                                                                  VerticalAlignment="Center"/>
-                                                        <StackPanel Grid.Column="1" Spacing="2">
-                                                            <TextBlock Text="{x:Bind Name}"
-                                                                       FontSize="13"
-                                                                       Foreground="#DADADA"
-                                                                       TextTrimming="CharacterEllipsis"/>
-                                                            <TextBlock Text="{x:Bind Path}"
-                                                                       FontSize="10"
-                                                                       Foreground="#888888"
-                                                                       TextTrimming="CharacterEllipsis"/>
-                                                        </StackPanel>
-                                                    </Grid>
-                                                </Button>
-                                            </DataTemplate>
-                                        </ListView.ItemTemplate>
-                                    </ListView>
-
-                                    <Rectangle Height="1" 
-                                               Fill="#404040" 
-                                               Margin="0,10,0,8"/>
-
-                                    <Button Content="Manage Vaults"
-                                            Click="OnManageVaultsClicked"
-                                            HorizontalAlignment="Stretch"
-                                            Background="Transparent"
-                                            Foreground="#DADADA"
-                                            BorderThickness="0"
-                                            CornerRadius="6"
-                                            Padding="10,8"
-                                            HorizontalContentAlignment="Left">
-                                        <Button.Resources>
-                                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#343434"/>
-                                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3A3A3A"/>
-                                        </Button.Resources>
-                                    </Button>
-                                </StackPanel>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
-                </Grid>
-            </Grid>
+            <controls:WorkspaceSidebar Grid.Column="0"
+                                     x:Name="Sidebar"
+                                     NoteSelected="OnNoteSelected"
+                                     VaultSelected="OnVaultItemClicked"
+                                     ManageVaultsRequested="OnManageVaultsClicked"
+                                     AddToFavoritesRequested="OnAddToFavoritesClicked"/>
 
             <!-- Content Area -->
             <Grid Grid.Column="1" Padding="0">
@@ -388,60 +105,14 @@
                 </Grid>
 
                 <!-- Editor View -->
-                <Grid x:Name="EditorView" Visibility="Collapsed" RowDefinitions="Auto, *" Padding="20">
-
-                    <!-- Title / Actions -->
-                    <Grid Grid.Row="0" ColumnDefinitions="*" Margin="0,0,0,20">
-                        <TextBox x:Name="NoteTitleEntry"
-                                 FontSize="30"
-                                 FontWeight="Bold"
-                                 PlaceholderText="Untitled"
-                                 VerticalAlignment="Center"
-                                 Foreground="{StaticResource TextPrimary}"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 TextChanged="OnNoteTitleTextChanged"
-                                 LostFocus="OnTitleUnfocused" />
-                    </Grid>
-
-                    <!-- Editor and Preview Split with independent scrollbars -->
-                    <Grid Grid.Row="1">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="0" x:Name="PreviewColumn" />
-                        </Grid.ColumnDefinitions>
-
-                        <TextBox Grid.Column="0"
-                                 x:Name="NoteContentEditor"
-                                 PlaceholderText="Start typing..."
-                                 VerticalAlignment="Stretch"
-                                 AcceptsReturn="True"
-                                 TextWrapping="Wrap"
-                                 ScrollViewer.VerticalScrollBarVisibility="Hidden"
-                                 TextChanged="OnNoteContentChanged" 
-                                 BorderThickness="0"
-                                 Background="Transparent"
-                                 Foreground="{StaticResource TextPrimary}" />
-
-                        <!-- Preview Toggle -->
-                        <Button Grid.Column="1"
-                                x:Name="PreviewToggleBtn"
-                                Content="&lt;"
-                                Background="Transparent"
-                                Foreground="{StaticResource TextSecondary}"
-                                BorderThickness="0"
-                                VerticalAlignment="Top"
-                                Margin="5,0,5,0"
-                                Click="OnTogglePreviewClicked"
-                                ToolTipService.ToolTip="Toggle Preview"/>
-
-                        <!-- Preview Pane -->
-                        <Grid Grid.Column="2" Background="{StaticResource AppBackground}" x:Name="PreviewContainer">
-                            <WebView2 x:Name="PreviewWebView" DefaultBackgroundColor="Transparent" />
-                        </Grid>
-                    </Grid>
-                </Grid>
+                <controls:NoteEditor x:Name="EditorView"
+                                   Visibility="Collapsed"
+                                   TitleChanged="OnNoteTitleTextChanged"
+                                   TitleUnfocused="OnTitleUnfocused"
+                                   ContentChanged="OnNoteContentChanged"
+                                   GenerateSummaryRequested="OnGenerateSummaryClicked"
+                                   CloseSummaryRequested="OnCloseSummaryClicked"
+                                   TogglePreviewRequested="OnTogglePreviewClicked"/>
             </Grid>
         </Grid>
     </Grid>

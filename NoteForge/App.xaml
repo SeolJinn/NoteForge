@@ -22,7 +22,7 @@
             <SolidColorBrush x:Key="TransparentTextControlBackground" Color="Transparent" />
             <SolidColorBrush x:Key="TransparentTextControlBackgroundPointerOver" Color="Transparent" />
             <SolidColorBrush x:Key="TransparentTextControlBackgroundFocused" Color="Transparent" />
-            
+
             <!-- Shared TextControl Styles (Dark Background) -->
             <SolidColorBrush x:Key="DarkTextControlBackground" Color="#2a2a2a" />
             <SolidColorBrush x:Key="DarkTextControlBackgroundPointerOver" Color="#2a2a2a" />
@@ -73,6 +73,18 @@
                 <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="CornerRadius" Value="8"/>
             </Style>
+
+            <CornerRadius x:Key="ControlCornerRadius">8</CornerRadius>
+            <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>
+
+            <SolidColorBrush x:Key="AccentButtonBackground" Color="#007acc"/>
+            <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#0088dd"/>
+            <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#006bb3"/>
+            <SolidColorBrush x:Key="AccentButtonBackgroundDisabled" Color="#404040"/>
+            <SolidColorBrush x:Key="AccentButtonForeground" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="AccentButtonForegroundDisabled" Color="#808080"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
