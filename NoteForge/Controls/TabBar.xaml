@@ -13,18 +13,32 @@
         <converters:TabBackgroundColorConverter x:Key="TabBackgroundColorConverter"/>
     </UserControl.Resources>
 
-    <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
-        <ListView x:Name="TabsCollection"
-                  ScrollViewer.HorizontalScrollMode="Auto"
-                  ScrollViewer.HorizontalScrollBarVisibility="Hidden"
-                  ScrollViewer.VerticalScrollMode="Disabled"
-                  VerticalAlignment="Bottom"
-                  SelectionMode="Single"
-                  SelectionChanged="OnTabSelected"
-                  CanReorderItems="True"
-                  CanDragItems="True"
-                  AllowDrop="True"
-                  Height="36">
+    <Grid VerticalAlignment="Bottom">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <ScrollViewer Grid.Column="0"
+                      x:Name="TabScrollViewer"
+                      HorizontalScrollMode="Enabled"
+                      HorizontalScrollBarVisibility="Hidden"
+                      VerticalScrollMode="Disabled"
+                      VerticalScrollBarVisibility="Disabled"
+                      PointerWheelChanged="OnTabScrollViewerPointerWheelChanged"
+                      Height="36">
+            <ListView x:Name="TabsCollection"
+                      ScrollViewer.HorizontalScrollMode="Disabled"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                      ScrollViewer.VerticalScrollMode="Disabled"
+                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                      VerticalAlignment="Bottom"
+                      SelectionMode="Single"
+                      SelectionChanged="OnTabSelected"
+                      CanReorderItems="True"
+                      CanDragItems="True"
+                      AllowDrop="True"
+                      Height="36">
             <ListView.Resources>
                 <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent"/>
                 <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent"/>
@@ -99,8 +113,10 @@
                 </DataTemplate>
             </ListView.ItemTemplate>
         </ListView>
+        </ScrollViewer>
 
-        <Button Background="Transparent"
+        <Button Grid.Column="1"
+                Background="Transparent"
                 Width="28"
                 Height="28"
                 CornerRadius="6"
@@ -119,5 +135,38 @@
                 <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
             </Button.Resources>
         </Button>
-    </StackPanel>
+
+        <!-- Scroll Indicators -->
+        <Border Grid.Column="0"
+                x:Name="LeftScrollIndicator"
+                Width="20"
+                Height="36"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Bottom"
+                Visibility="Collapsed"
+                IsHitTestVisible="False">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                    <GradientStop Color="#80000000" Offset="0"/>
+                    <GradientStop Color="#00000000" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+
+        <Border Grid.Column="0"
+                x:Name="RightScrollIndicator"
+                Width="20"
+                Height="36"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Bottom"
+                Visibility="Collapsed"
+                IsHitTestVisible="False">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                    <GradientStop Color="#00000000" Offset="0"/>
+                    <GradientStop Color="#80000000" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+        </Border>
+    </Grid>
 </UserControl>

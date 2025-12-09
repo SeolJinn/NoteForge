@@ -18,6 +18,8 @@ public partial class App : Application
     public static IDialogService DialogService => Services.GetRequiredService<IDialogService>();
     public static IMediator Mediator => Services.GetRequiredService<IMediator>();
     public static ILoggerFactory LoggerFactory => Services.GetRequiredService<ILoggerFactory>();
+    public static SectionService SectionService => Services.GetRequiredService<SectionService>();
+    public static ISearchService SearchService => Services.GetRequiredService<ISearchService>();
 
     public App()
     {
@@ -41,6 +43,8 @@ public partial class App : Application
         services.AddSingleton<IMarkdownPreviewService, MarkdownPreviewService>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<OllamaService>();
+        services.AddSingleton<SectionService>();
+        services.AddSingleton<ISearchService, SearchService>();
 
         // Register Mediator
         services.AddMediator();

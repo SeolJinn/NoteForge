@@ -1,6 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Windows.System;
+using NoteForge.Services.Search;
 
 namespace NoteForge.Controls;
 
@@ -14,10 +19,14 @@ public sealed partial class NoteEditor : UserControl
     public event EventHandler? TogglePreviewRequested;
 
     private bool _suppressEvents;
+    private readonly ISearchStrategy<string, TextMatch> _textSearchStrategy;
+    private List<TextMatch> _searchMatches = new();
+    private int _currentMatchIndex = -1;
 
     public NoteEditor()
     {
         InitializeComponent();
+        _textSearchStrategy = new InFileTextSearchStrategy();
     }
 
     public void SetTitle(string title)
@@ -76,6 +85,27 @@ public sealed partial class NoteEditor : UserControl
         return PreviewColumn.Width.Value;
     }
 
+    public void NavigateToLine(int lineNumber)
+    {
+        var text = NoteContentEditor.Text;
+        if (string.IsNullOrEmpty(text) || lineNumber < 1)
+            return;
+
+        var lines = text.Split(['\r', '\n'], StringSplitOptions.None);
+        if (lineNumber > lines.Length)
+            return;
+
+        var position = 0;
+        for (int i = 0; i < lineNumber - 1 && i < lines.Length; i++)
+        {
+            position += lines[i].Length + 1;
+        }
+
+        NoteContentEditor.Focus(FocusState.Programmatic);
+        NoteContentEditor.SelectionStart = position;
+        NoteContentEditor.SelectionLength = lines[lineNumber - 1].Length;
+    }
+
     private void OnTitleTextChanged(object sender, TextChangedEventArgs e)
     {
         if (!_suppressEvents)
@@ -110,5 +140,146 @@ public sealed partial class NoteEditor : UserControl
     private void OnTogglePreviewClicked(object sender, RoutedEventArgs e)
     {
         TogglePreviewRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnEditorKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.F &&
+            (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0)
+        {
+            e.Handled = true;
+            ShowSearchBar();
+        }
+    }
+
+    private void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == VirtualKey.Escape)
+        {
+            e.Handled = true;
+            HideSearchBar();
+        }
+        else if (e.Key == VirtualKey.Enter)
+        {
+            e.Handled = true;
+            var isShiftPressed = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
+            if (isShiftPressed)
+            {
+                NavigateToPreviousMatch();
+            }
+            else
+            {
+                NavigateToNextMatch();
+            }
+        }
+        else if (e.Key == VirtualKey.Down)
+        {
+            e.Handled = true;
+            NavigateToNextMatch();
+        }
+        else if (e.Key == VirtualKey.Up)
+        {
+            e.Handled = true;
+            NavigateToPreviousMatch();
+        }
+    }
+
+    private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
+    {
+        PerformSearch();
+    }
+
+    private void OnPreviousMatchClicked(object sender, RoutedEventArgs e)
+    {
+        NavigateToPreviousMatch();
+    }
+
+    private void OnNextMatchClicked(object sender, RoutedEventArgs e)
+    {
+        NavigateToNextMatch();
+    }
+
+    private void OnCloseSearchClicked(object sender, RoutedEventArgs e)
+    {
+        HideSearchBar();
+    }
+
+    private void ShowSearchBar()
+    {
+        SearchBar.Visibility = Visibility.Visible;
+        SearchBox.Focus(FocusState.Programmatic);
+    }
+
+    private void HideSearchBar()
+    {
+        SearchBar.Visibility = Visibility.Collapsed;
+        _searchMatches.Clear();
+        _currentMatchIndex = -1;
+        NoteContentEditor.Focus(FocusState.Programmatic);
+    }
+
+    private void PerformSearch()
+    {
+        _searchMatches.Clear();
+        _currentMatchIndex = -1;
+
+        var searchText = SearchBox.Text;
+        if (string.IsNullOrEmpty(searchText))
+        {
+            return;
+        }
+
+        var content = NoteContentEditor.Text;
+        if (string.IsNullOrEmpty(content))
+        {
+            return;
+        }
+
+        _searchMatches = _textSearchStrategy.Search(content, searchText).ToList();
+
+        if (_searchMatches.Any())
+        {
+            _currentMatchIndex = 0;
+        }
+    }
+
+    private void NavigateToNextMatch()
+    {
+        if (!_searchMatches.Any())
+        {
+            return;
+        }
+
+        _currentMatchIndex = (_currentMatchIndex + 1) % _searchMatches.Count;
+        HighlightCurrentMatch();
+    }
+
+    private void NavigateToPreviousMatch()
+    {
+        if (!_searchMatches.Any())
+        {
+            return;
+        }
+
+        _currentMatchIndex--;
+        if (_currentMatchIndex < 0)
+        {
+            _currentMatchIndex = _searchMatches.Count - 1;
+        }
+        HighlightCurrentMatch();
+    }
+
+    private void HighlightCurrentMatch()
+    {
+        if (_currentMatchIndex < 0 || _currentMatchIndex >= _searchMatches.Count)
+        {
+            return;
+        }
+
+        var match = _searchMatches[_currentMatchIndex];
+
+        NoteContentEditor.SelectionStart = match.Position;
+        NoteContentEditor.SelectionLength = match.Length;
+        NoteContentEditor.Focus(FocusState.Programmatic);
     }
 }

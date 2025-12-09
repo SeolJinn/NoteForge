@@ -14,11 +14,26 @@ public sealed partial class TabBar : UserControl
     public TabBar()
     {
         InitializeComponent();
+        TabScrollViewer.ViewChanged += OnScrollViewChanged;
+        TabScrollViewer.Loaded += (s, e) => UpdateScrollIndicators();
+        TabScrollViewer.SizeChanged += OnScrollViewerSizeChanged;
+        TabsCollection.SizeChanged += OnTabsCollectionSizeChanged;
     }
 
     public void SetItemsSource(object itemsSource)
     {
         TabsCollection.ItemsSource = itemsSource;
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, UpdateScrollIndicators);
+    }
+
+    private void OnScrollViewerSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateScrollIndicators();
+    }
+
+    private void OnTabsCollectionSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateScrollIndicators();
     }
 
     public void SetSelectedItem(object? item)
@@ -45,5 +60,28 @@ public sealed partial class TabBar : UserControl
     private void OnNewTabClicked(object sender, RoutedEventArgs e)
     {
         NewTabRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnTabScrollViewerPointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        var delta = e.GetCurrentPoint(TabScrollViewer).Properties.MouseWheelDelta;
+        var currentOffset = TabScrollViewer.HorizontalOffset;
+        var newOffset = currentOffset - (delta * 0.5);
+        TabScrollViewer.ChangeView(newOffset, null, null, false);
+        e.Handled = true;
+    }
+
+    private void OnScrollViewChanged(object? sender, ScrollViewerViewChangedEventArgs e)
+    {
+        UpdateScrollIndicators();
+    }
+
+    private void UpdateScrollIndicators()
+    {
+        var canScrollLeft = TabScrollViewer.HorizontalOffset > 0;
+        var canScrollRight = TabScrollViewer.HorizontalOffset < TabScrollViewer.ScrollableWidth;
+
+        LeftScrollIndicator.Visibility = canScrollLeft ? Visibility.Visible : Visibility.Collapsed;
+        RightScrollIndicator.Visibility = canScrollRight ? Visibility.Visible : Visibility.Collapsed;
     }
 }

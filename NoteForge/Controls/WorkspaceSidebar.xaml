@@ -6,72 +6,247 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:NoteForge.Models"
-    xmlns:converters="using:NoteForge.Converters"
+    xmlns:converters="using:NoteForge.Converters" xmlns:controls="using:NoteForge.Controls"
     mc:Ignorable="d"
-    Width="250"
     Background="{StaticResource SideBar}">
 
     <UserControl.Resources>
         <converters:SidebarBackgroundColorConverter x:Key="SidebarBackgroundColorConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+        <converters:CollectionCountToVisibilityConverter x:Key="CollectionCountToVisibilityConverter"/>
+        <converters:BoolToChevronConverter x:Key="BoolToChevronConverter"/>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     </UserControl.Resources>
 
-    <Grid RowDefinitions="Auto, *, Auto">
-        <StackPanel Grid.Row="0" Padding="10" Spacing="5">
-            <TextBlock x:Name="PathLabel" Text="Path: ..." FontSize="10" Foreground="{StaticResource Gray600}" TextTrimming="CharacterEllipsis" />
-        </StackPanel>
+    <Grid RowDefinitions="*, Auto" Background="{StaticResource SideBar}">
+        <Grid Grid.Row="0">
+            <ListView x:Name="SectionsListView"
+                      SelectionMode="None"
+                      CanReorderItems="True"
+                      CanDragItems="True"
+                      AllowDrop="True"
+                      DragItemsCompleted="OnSectionDragCompleted"
+                      Background="Transparent">
+                <ListView.Resources>
+                    <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent"/>
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent"/>
+                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent"/>
+                    <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent"/>
+                </ListView.Resources>
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="Padding" Value="0"/>
+                        <Setter Property="Margin" Value="0"/>
+                        <Setter Property="MinHeight" Value="0"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    </Style>
+                </ListView.ItemContainerStyle>
+                <ListView.ContextFlyout>
+                    <MenuFlyout Placement="RightEdgeAlignedTop">
+                        <MenuFlyout.MenuFlyoutPresenterStyle>
+                            <Style TargetType="MenuFlyoutPresenter">
+                                <Setter Property="Background" Value="{StaticResource SideBar}"/>
+                                <Setter Property="BorderBrush" Value="{StaticResource Separator}"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="CornerRadius" Value="8"/>
+                                <Setter Property="Padding" Value="4"/>
+                            </Style>
+                        </MenuFlyout.MenuFlyoutPresenterStyle>
+                        <MenuFlyoutItem Text="New section"
+                                        Click="OnCreateSectionClicked"
+                                        Foreground="#DADADA">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon Glyph="&#xE710;" FontFamily="Segoe MDL2 Assets"/>
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyout>
+                </ListView.ContextFlyout>
+            </ListView>
 
-        <ListView Grid.Row="1" x:Name="NotesCollection" SelectionMode="Single" SelectionChanged="OnNoteSelected">
-            <ListView.Resources>
-                <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent" />
-                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent" />
-                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed" Color="Transparent" />
-                <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent" />
-                <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent" />
-            </ListView.Resources>
-            <ListView.ItemContainerStyle>
-                <Style TargetType="ListViewItem">
-                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                    <Setter Property="Padding" Value="0" />
-                    <Setter Property="Margin" Value="0" />
-                </Style>
-            </ListView.ItemContainerStyle>
-            <ListView.ItemTemplate>
-                <DataTemplate x:DataType="models:Note">
-                    <Border CornerRadius="8"
-                            Margin="10,2,10,2"
-                            Padding="15,10"
-                            Background="{x:Bind IsSelected, Converter={StaticResource SidebarBackgroundColorConverter}, Mode=OneWay}">
-                        <Border.ContextFlyout>
-                            <MenuFlyout Placement="RightEdgeAlignedTop">
-                                <MenuFlyout.MenuFlyoutPresenterStyle>
-                                    <Style TargetType="MenuFlyoutPresenter">
-                                        <Setter Property="Background" Value="{StaticResource SideBar}"/>
-                                        <Setter Property="BorderBrush" Value="{StaticResource Separator}"/>
-                                        <Setter Property="BorderThickness" Value="1"/>
-                                        <Setter Property="CornerRadius" Value="8"/>
-                                        <Setter Property="Padding" Value="4"/>
-                                    </Style>
-                                </MenuFlyout.MenuFlyoutPresenterStyle>
-                                <MenuFlyoutItem Text="Add to favorites"
-                                                Tag="{x:Bind}"
-                                                Click="OnAddToFavoritesClicked">
-                                    <MenuFlyoutItem.Icon>
-                                        <FontIcon Glyph="&#xE734;"
-                                                  FontFamily="Segoe MDL2 Assets"/>
-                                    </MenuFlyoutItem.Icon>
-                                </MenuFlyoutItem>
-                            </MenuFlyout>
-                        </Border.ContextFlyout>
-                        <TextBlock Text="{x:Bind Filename, Mode=OneWay}"
-                                   FontSize="14"
+            <Grid x:Name="SearchView" Visibility="Collapsed" RowDefinitions="Auto, *" Padding="10">
+                <TextBox x:Name="SearchTextBox"
+                         Grid.Row="0"
+                         PlaceholderText="Search..."
+                         TextChanged="OnSearchTextChanged"
+                         GotFocus="OnSearchTextBoxGotFocus"
+                         Loaded="OnSearchTextBoxLoaded"
+                         Height="32"
+                         Margin="0,0,0,10">
+                    <TextBox.Resources>
+                        <CornerRadius x:Key="ControlCornerRadius">8</CornerRadius>
+                        <StaticResource x:Key="TextControlBackground" ResourceKey="AppSurface"/>
+                        <StaticResource x:Key="TextControlBackgroundPointerOver" ResourceKey="AppSurface"/>
+                        <StaticResource x:Key="TextControlBackgroundFocused" ResourceKey="AppSurface"/>
+                        <StaticResource x:Key="TextControlForeground" ResourceKey="TextPrimary"/>
+                        <StaticResource x:Key="TextControlForegroundPointerOver" ResourceKey="TextPrimary"/>
+                        <StaticResource x:Key="TextControlForegroundFocused" ResourceKey="TextPrimary"/>
+                        <StaticResource x:Key="TextControlBorderBrush" ResourceKey="Separator"/>
+                        <StaticResource x:Key="TextControlBorderBrushPointerOver" ResourceKey="TextSecondary"/>
+                        <StaticResource x:Key="TextControlBorderBrushFocused" ResourceKey="Primary"/>
+                        <StaticResource x:Key="TextControlPlaceholderForeground" ResourceKey="TextSecondary"/>
+                        <StaticResource x:Key="TextControlPlaceholderForegroundPointerOver" ResourceKey="TextSecondary"/>
+                        <StaticResource x:Key="TextControlPlaceholderForegroundFocused" ResourceKey="TextSecondary"/>
+                    </TextBox.Resources>
+                </TextBox>
+
+                <Grid Grid.Row="1">
+                    <StackPanel x:Name="SearchOptionsMenu" Spacing="8">
+                        <TextBlock Text="Search options"
+                                   FontSize="13"
                                    Foreground="{StaticResource TextPrimary}"
-                                   TextTrimming="CharacterEllipsis" />
-                    </Border>
-                </DataTemplate>
-            </ListView.ItemTemplate>
-        </ListView>
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,8"/>
 
-        <Grid Grid.Row="2" Padding="10">
+                        <Button Background="Transparent"
+                                BorderThickness="0"
+                                Padding="0"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Click="OnPathFilterClicked">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                            </Button.Resources>
+                            <StackPanel>
+                                <TextBlock FontSize="12" Foreground="{StaticResource TextPrimary}">
+                                    <Run Text="path:" FontWeight="SemiBold"/>
+                                    <Run Text=" match path of the file" Foreground="{StaticResource Gray500}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Button>
+
+                        <Button Background="Transparent"
+                                BorderThickness="0"
+                                Padding="0"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Click="OnFileFilterClicked">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
+                            </Button.Resources>
+                            <StackPanel>
+                                <TextBlock FontSize="12" Foreground="{StaticResource TextPrimary}">
+                                    <Run Text="file:" FontWeight="SemiBold"/>
+                                    <Run Text=" match file name" Foreground="{StaticResource Gray500}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Button>
+
+                        <TextBlock x:Name="InitialNoResultsText"
+                                   Text="No matches found"
+                                   FontSize="13"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,40,0,0"/>
+                    </StackPanel>
+
+                    <Grid x:Name="ResultsContainer" Visibility="Collapsed">
+                        <TextBlock x:Name="NoResultsText"
+                                   Text="No matches found"
+                                   FontSize="13"
+                                   Foreground="{StaticResource TextSecondary}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Visibility="Collapsed"/>
+
+                        <ListView x:Name="ResultsListView"
+                                  SelectionMode="Single"
+                                  SelectionChanged="OnResultSelected"
+                                  Background="Transparent">
+                            <ListView.Resources>
+                                <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent"/>
+                                <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent"/>
+                            </ListView.Resources>
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Margin" Value="0,0,0,4"/>
+                                    <Setter Property="MinHeight" Value="0"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="models:SearchResult">
+                                    <StackPanel Spacing="0">
+                                        <Grid Background="Transparent"
+                                              Padding="10,8"
+                                              Tapped="OnSearchResultHeaderTapped"
+                                              Tag="{x:Bind}">
+                                            <Grid.Resources>
+                                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2A2A2A"/>
+                                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#333333"/>
+                                            </Grid.Resources>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <FontIcon Glyph="{x:Bind IsExpanded, Converter={StaticResource BoolToChevronConverter}, Mode=OneWay}"
+                                                          FontSize="10"
+                                                          Foreground="{StaticResource TextSecondary}"
+                                                          VerticalAlignment="Center"
+                                                          Visibility="{x:Bind MatchingLines, Converter={StaticResource CollectionCountToVisibilityConverter}}"/>
+                                                <controls:HighlightedTextBlock Text="{x:Bind Note.Filename}"
+                                                                              Highlight="{x:Bind SearchQuery}"
+                                                                              TextFontSize="13"
+                                                                              TextForeground="{StaticResource TextPrimary}"
+                                                                              VerticalAlignment="Center"/>
+                                                <TextBlock Text="{x:Bind MatchCount, Mode=OneWay}"
+                                                           FontSize="11"
+                                                           Foreground="{StaticResource Gray600}"
+                                                           VerticalAlignment="Center"
+                                                           Visibility="{x:Bind MatchingLines, Converter={StaticResource CollectionCountToVisibilityConverter}}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <Border Background="#1E1E1E"
+                                                CornerRadius="4"
+                                                Padding="8,8,8,4"
+                                                Margin="10,0,10,4"
+                                                Visibility="{x:Bind ShouldShowMatchingLines, Converter={StaticResource BoolToVisibilityConverter}, Mode=OneWay}">
+                                            <ItemsControl ItemsSource="{x:Bind MatchingLines}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="models:MatchingLine">
+                                                        <Grid Margin="0,0,0,4">
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="Auto"/>
+                                                                <RowDefinition Height="Auto"/>
+                                                            </Grid.RowDefinitions>
+                                                            <Button Grid.Row="0"
+                                                                    Background="Transparent"
+                                                                    BorderThickness="0"
+                                                                    Padding="0"
+                                                                    HorizontalAlignment="Stretch"
+                                                                    HorizontalContentAlignment="Left"
+                                                                    Tag="{x:Bind}"
+                                                                    Click="OnMatchingLineClicked">
+                                                                <Button.Resources>
+                                                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2A2A2A"/>
+                                                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#333333"/>
+                                                                </Button.Resources>
+                                                                <controls:HighlightedTextBlock Text="{x:Bind Text}"
+                                                                                              Highlight="{x:Bind SearchQuery}"
+                                                                                              TextFontSize="11"
+                                                                                              TextForeground="{StaticResource TextSecondary}"/>
+                                                            </Button>
+                                                            <Rectangle Grid.Row="1"
+                                                                      Height="1"
+                                                                      Fill="#363636"
+                                                                      Margin="0,4,0,0"
+                                                                      Visibility="{x:Bind IsLast, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Border>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <Grid Grid.Row="1" Padding="10">
             <Button x:Name="VaultSelectorButton"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Left"

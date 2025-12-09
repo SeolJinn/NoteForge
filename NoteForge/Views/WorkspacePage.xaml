@@ -29,18 +29,38 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- Sidebar Toggle -->
+            <!-- Sidebar Toggle and View Buttons -->
             <Grid Grid.Column="0">
-                <Button Content="☰"
-                        FontSize="16"
-                        Foreground="{StaticResource TextPrimary}"
-                        Background="Transparent"
-                        Width="40"
-                        Height="40"
-                        Margin="10,0,0,0"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Center"
-                        Click="OnToggleSidebarClicked"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="10,0,0,0">
+                    <Button Content="☰"
+                            FontSize="16"
+                            Foreground="{StaticResource TextPrimary}"
+                            Background="Transparent"
+                            Width="40"
+                            Height="40"
+                            VerticalAlignment="Center"
+                            Click="OnToggleSidebarClicked"/>
+                    <Button x:Name="FolderViewButton"
+                            FontSize="16"
+                            Foreground="{StaticResource TextPrimary}"
+                            Background="Transparent"
+                            Width="40"
+                            Height="40"
+                            VerticalAlignment="Center"
+                            Click="OnFolderViewClicked">
+                        <FontIcon Glyph="&#xE8B7;" FontSize="16"/>
+                    </Button>
+                    <Button x:Name="SearchViewButton"
+                            FontSize="16"
+                            Foreground="{StaticResource TextPrimary}"
+                            Background="Transparent"
+                            Width="40"
+                            Height="40"
+                            VerticalAlignment="Center"
+                            Click="OnSearchViewClicked">
+                        <FontIcon Glyph="&#xE721;" FontSize="16"/>
+                    </Button>
+                </StackPanel>
             </Grid>
 
             <!-- Tab Bar -->
@@ -52,18 +72,45 @@
         </Grid>
 
         <!-- Main Body -->
-        <Grid Grid.Row="1" ColumnDefinitions="Auto, *">
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="SidebarColumn" Width="250" MinWidth="200"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*" MinWidth="200"/>
+            </Grid.ColumnDefinitions>
 
             <!-- Sidebar -->
             <controls:WorkspaceSidebar Grid.Column="0"
-                                     x:Name="Sidebar"
-                                     NoteSelected="OnNoteSelected"
-                                     VaultSelected="OnVaultItemClicked"
-                                     ManageVaultsRequested="OnManageVaultsClicked"
-                                     AddToFavoritesRequested="OnAddToFavoritesClicked"/>
+                                       x:Name="Sidebar"
+                                       NoteSelected="OnNoteSelected"
+                                       MatchingLineSelected="OnMatchingLineSelected"
+                                       VaultSelected="OnVaultItemClicked"
+                                       ManageVaultsRequested="OnManageVaultsClicked"
+                                       ToggleFavoriteRequested="OnToggleFavoriteClicked"
+                                       CreateSectionRequested="OnCreateSectionClicked"
+                                       RenameSectionRequested="OnRenameSectionClicked"
+                                       DeleteSectionRequested="OnDeleteSectionClicked"
+                                       NoteMovedToSection="OnNoteMovedToSection"
+                                       SectionsReordered="OnSectionsReordered"/>
+
+            <!-- Splitter -->
+            <Border Grid.Column="1"
+                    x:Name="SplitterBorder"
+                    Width="4"
+                    Background="Transparent"
+                    PointerEntered="OnSplitterPointerEntered"
+                    PointerExited="OnSplitterPointerExited"
+                    PointerPressed="OnSplitterPointerPressed"
+                    PointerMoved="OnSplitterPointerMoved"
+                    PointerReleased="OnSplitterPointerReleased">
+                <Rectangle x:Name="SplitterIndicator"
+                           Width="1"
+                           Fill="{StaticResource Separator}"
+                           HorizontalAlignment="Center"/>
+            </Border>
 
             <!-- Content Area -->
-            <Grid Grid.Column="1" Padding="0">
+            <Grid Grid.Column="2" Padding="0">
                 <!-- New Tab State -->
                 <Grid x:Name="NewTabView" Visibility="Collapsed">
                     <StackPanel HorizontalAlignment="Center"

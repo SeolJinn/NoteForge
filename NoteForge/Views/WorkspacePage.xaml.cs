@@ -8,6 +8,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Markup;
+using NoteForge.Controls;
 using NoteForge.Handlers;
 using NoteForge.Interfaces;
 using NoteForge.Models;
@@ -28,6 +30,8 @@ public sealed partial class WorkspacePage : Page
     private CancellationTokenSource? _summaryCts;
     private bool _isLoading;
     private bool _isSyncingTitle;
+    private bool _isSplitterDragging;
+    private double _splitterStartX;
 
     public WorkspacePage()
     {
@@ -56,8 +60,7 @@ public sealed partial class WorkspacePage : Page
         var workspace = await _mediator.Send(new LoadWorkspaceQueryRequest());
 
         Sidebar.SetVaultName(workspace.VaultName);
-        Sidebar.SetPathLabel(workspace.VaultPath);
-        Sidebar.SetNotesSource(workspace.Notes);
+        Sidebar.LoadSections(workspace.Sections);
 
         if (workspace.InitialNoteFilePath is not null)
         {
@@ -65,7 +68,6 @@ public sealed partial class WorkspacePage : Page
             if (activeNote is not null)
             {
                 SetSelectedNote(activeNote);
-                Sidebar.SetSelectedNote(activeNote);
             }
         }
     }
@@ -108,8 +110,53 @@ public sealed partial class WorkspacePage : Page
 
     private void OnToggleSidebarClicked(object sender, RoutedEventArgs e)
     {
-        Sidebar.Visibility = Sidebar.Visibility is Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-        TitleBarSidebarColumn.Width = Sidebar.Visibility is Visibility.Visible ? new GridLength(250) : GridLength.Auto;
+        if (Sidebar.Visibility is Visibility.Visible)
+        {
+            Sidebar.Visibility = Visibility.Collapsed;
+            SplitterBorder.Visibility = Visibility.Collapsed;
+            SidebarColumn.Width = new GridLength(0);
+            TitleBarSidebarColumn.Width = GridLength.Auto;
+        }
+        else
+        {
+            Sidebar.Visibility = Visibility.Visible;
+            SplitterBorder.Visibility = Visibility.Visible;
+            SidebarColumn.Width = new GridLength(250);
+            TitleBarSidebarColumn.Width = new GridLength(250);
+        }
+    }
+
+    private void OnFolderViewClicked(object sender, RoutedEventArgs e)
+    {
+        Sidebar.Visibility = Visibility.Visible;
+        SplitterBorder.Visibility = Visibility.Visible;
+        Sidebar.SetViewMode(SidebarViewMode.Folder);
+
+        if (SidebarColumn.ActualWidth == 0)
+        {
+            SidebarColumn.Width = new GridLength(250);
+            TitleBarSidebarColumn.Width = new GridLength(250);
+        }
+    }
+
+    private async void OnSearchViewClicked(object sender, RoutedEventArgs e)
+    {
+        var workspace = await _mediator.Send(new LoadWorkspaceQueryRequest());
+        var allNotes = workspace.Sections
+            .SelectMany(s => s.Notes)
+            .DistinctBy(n => n.FilePath)
+            .ToList();
+
+        Sidebar.LoadNotesForSearch(allNotes);
+        Sidebar.SetViewMode(SidebarViewMode.Search);
+        Sidebar.Visibility = Visibility.Visible;
+        SplitterBorder.Visibility = Visibility.Visible;
+
+        if (SidebarColumn.ActualWidth == 0)
+        {
+            SidebarColumn.Width = new GridLength(250);
+            TitleBarSidebarColumn.Width = new GridLength(250);
+        }
     }
 
     private void OnNoteSelected(object sender, Note selectedNote)
@@ -120,6 +167,23 @@ public sealed partial class WorkspacePage : Page
             return;
         }
         _tabManager.OpenTab(selectedNote);
+    }
+
+    private void OnMatchingLineSelected(object sender, (Note Note, int LineNumber) args)
+    {
+        if (_tabManager.ActiveTab?.FilePath == args.Note.FilePath)
+        {
+            SetSelectedNote(args.Note);
+        }
+        else
+        {
+            _tabManager.OpenTab(args.Note);
+        }
+
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            EditorView.NavigateToLine(args.LineNumber);
+        });
     }
 
     private void OnTabSelected(object sender, Tab tab)
@@ -274,6 +338,7 @@ public sealed partial class WorkspacePage : Page
         {
             _tabManager.ActiveTab.DisplayName = _selectedNote.Filename;
             _tabManager.ActiveTab.FilePath = _selectedNote.FilePath;
+            await LoadNotes();
         }
         else SyncTitles(currentTitle);
     }
@@ -321,14 +386,201 @@ public sealed partial class WorkspacePage : Page
         }
     }
 
-    private void OnGoToFileClicked(object sender, RoutedEventArgs e)
+    private async void OnGoToFileClicked(object sender, RoutedEventArgs e)
     {
-        // TODO: Implement go to file functionality
+        var workspace = await _mediator.Send(new LoadWorkspaceQueryRequest());
+        var allNotes = workspace.Sections
+            .SelectMany(s => s.Notes)
+            .DistinctBy(n => n.FilePath)
+            .ToList();
+
+        var searchBox = new AutoSuggestBox
+        {
+            PlaceholderText = "Type to search for a note...",
+            Width = 400,
+            QueryIcon = new SymbolIcon(Symbol.Find),
+            Height = 36
+        };
+
+        searchBox.Resources["ControlCornerRadius"] = new CornerRadius(8);
+        searchBox.Resources["OverlayCornerRadius"] = new CornerRadius(8);
+        searchBox.Resources["TextControlBackground"] = Application.Current.Resources["AppSurface"];
+        searchBox.Resources["TextControlBackgroundPointerOver"] = Application.Current.Resources["AppSurface"];
+        searchBox.Resources["TextControlBackgroundFocused"] = Application.Current.Resources["AppSurface"];
+        searchBox.Resources["TextControlForeground"] = Application.Current.Resources["TextPrimary"];
+        searchBox.Resources["TextControlForegroundPointerOver"] = Application.Current.Resources["TextPrimary"];
+        searchBox.Resources["TextControlForegroundFocused"] = Application.Current.Resources["TextPrimary"];
+        searchBox.Resources["TextControlBorderBrush"] = Application.Current.Resources["Separator"];
+        searchBox.Resources["TextControlBorderBrushPointerOver"] = Application.Current.Resources["TextSecondary"];
+        searchBox.Resources["TextControlBorderBrushFocused"] = Application.Current.Resources["Primary"];
+        searchBox.Resources["TextControlPlaceholderForeground"] = Application.Current.Resources["TextSecondary"];
+        searchBox.Resources["TextControlPlaceholderForegroundPointerOver"] = Application.Current.Resources["TextSecondary"];
+        searchBox.Resources["TextControlPlaceholderForegroundFocused"] = Application.Current.Resources["TextSecondary"];
+
+        searchBox.ItemTemplate = (Microsoft.UI.Xaml.DataTemplate)XamlReader.Load(@"
+            <DataTemplate xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation"">
+                <Grid Padding=""8,6"">
+                    <TextBlock Text=""{Binding Filename}""
+                               FontSize=""13""
+                               Foreground=""#DADADA""
+                               TextTrimming=""CharacterEllipsis""/>
+                </Grid>
+            </DataTemplate>");
+
+        var popup = new Popup
+        {
+            Child = searchBox,
+            IsLightDismissEnabled = true,
+            LightDismissOverlayMode = LightDismissOverlayMode.On,
+            XamlRoot = XamlRoot
+        };
+
+        var bounds = XamlRoot.Size;
+        popup.HorizontalOffset = (bounds.Width - 400) / 2;
+        popup.VerticalOffset = 100;
+
+        searchBox.TextChanged += (s, args) =>
+        {
+            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+            {
+                var query = searchBox.Text;
+                var searchResults = App.SearchService.SearchByName(allNotes, query);
+                searchBox.ItemsSource = searchResults.Take(10).ToList();
+            }
+        };
+
+        searchBox.QuerySubmitted += (s, args) =>
+        {
+            Note? selectedNote = null;
+
+            if (args.ChosenSuggestion is Note note)
+            {
+                selectedNote = note;
+            }
+            else if (!string.IsNullOrWhiteSpace(args.QueryText))
+            {
+                var searchResults = App.SearchService.SearchByName(allNotes, args.QueryText);
+                selectedNote = searchResults.FirstOrDefault();
+            }
+
+            if (selectedNote is not null)
+            {
+                _tabManager.OpenTab(selectedNote);
+                popup.IsOpen = false;
+            }
+        };
+
+        searchBox.PreviewKeyDown += (s, args) =>
+        {
+            if (args.Key == Windows.System.VirtualKey.Escape)
+            {
+                popup.IsOpen = false;
+                args.Handled = true;
+            }
+        };
+
+        popup.IsOpen = true;
+        await Task.Delay(50);
+
+        searchBox.ItemsSource = allNotes.Take(10).ToList();
+        searchBox.Focus(FocusState.Programmatic);
     }
 
-    private void OnAddToFavoritesClicked(object sender, EventArgs e)
+    private async void OnToggleFavoriteClicked(object sender, Note note)
     {
-        // TODO: Implement Add to favorites functionality
+        await _mediator.Send(new ToggleFavoriteCommandRequest(note));
+        await LoadNotes();
+    }
+
+    private async void OnCreateSectionClicked(object sender, string e)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "New Section",
+            PrimaryButtonText = "Create",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot
+        };
+
+        var nameBox = new TextBox
+        {
+            PlaceholderText = "Section name",
+            Margin = new Thickness(0, 8, 0, 0)
+        };
+
+        dialog.Content = nameBox;
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameBox.Text))
+        {
+            await _mediator.Send(new CreateSectionCommandRequest(nameBox.Text));
+            await LoadNotes();
+        }
+    }
+
+    private async void OnRenameSectionClicked(object sender, NoteSection section)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "Rename Section",
+            PrimaryButtonText = "Rename",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot
+        };
+
+        var nameBox = new TextBox
+        {
+            Text = section.Name,
+            Margin = new Thickness(0, 8, 0, 0)
+        };
+
+        dialog.Content = nameBox;
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameBox.Text))
+        {
+            App.SectionService.RenameSection(section.Id, nameBox.Text);
+            await LoadNotes();
+        }
+    }
+
+    private async void OnDeleteSectionClicked(object sender, NoteSection section)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "Delete Section",
+            Content = $"Are you sure you want to delete '{section.Name}'?",
+            PrimaryButtonText = "Delete",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot
+        };
+
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            App.SectionService.RemoveSection(section.Id);
+            await LoadNotes();
+        }
+    }
+
+    private async void OnNoteMovedToSection(object sender, (Note Note, string TargetSectionId) e)
+    {
+        var wasSelected = _selectedNote?.FilePath == e.Note.FilePath;
+        App.SectionService.AssignNoteToSection(e.Note.FilePath, e.TargetSectionId);
+        await LoadNotes();
+
+        if (wasSelected && _selectedNote is not null)
+        {
+            Sidebar.SetSelectedNote(_selectedNote);
+        }
+    }
+
+    private async void OnSectionsReordered(object sender, EventArgs e)
+    {
+        await LoadNotes();
     }
 
     private async void OnGenerateSummaryClicked(object sender, EventArgs e)
@@ -367,5 +619,63 @@ public sealed partial class WorkspacePage : Page
     {
         _summaryCts?.Cancel();
         EditorView.HideAiSummary();
+    }
+
+    private void OnSplitterPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        SplitterIndicator.Fill = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["Primary"];
+        ProtectedCursor = Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.SizeWestEast);
+    }
+
+    private void OnSplitterPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (!_isSplitterDragging)
+        {
+            SplitterIndicator.Fill = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["Separator"];
+        }
+        ProtectedCursor = Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.Arrow);
+    }
+
+    private void OnSplitterPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        _isSplitterDragging = true;
+        _splitterStartX = e.GetCurrentPoint(this).Position.X;
+        SplitterBorder.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void OnSplitterPointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (!_isSplitterDragging)
+            return;
+
+        var currentPoint = e.GetCurrentPoint(this);
+        var deltaX = currentPoint.Position.X - _splitterStartX;
+
+        var currentWidth = SidebarColumn.ActualWidth;
+        var newWidth = currentWidth + deltaX;
+
+        var totalWidth = ActualWidth;
+        var maxWidth = totalWidth * 0.8;
+
+        if (newWidth >= SidebarColumn.MinWidth && newWidth <= maxWidth && newWidth <= totalWidth - 200)
+        {
+            SidebarColumn.Width = new GridLength(newWidth);
+            TitleBarSidebarColumn.Width = new GridLength(newWidth);
+            _splitterStartX = currentPoint.Position.X;
+        }
+
+        e.Handled = true;
+    }
+
+    private void OnSplitterPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (_isSplitterDragging)
+        {
+            _isSplitterDragging = false;
+            SplitterBorder.ReleasePointerCapture(e.Pointer);
+            SplitterIndicator.Fill = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["Separator"];
+        }
+        e.Handled = true;
     }
 }
