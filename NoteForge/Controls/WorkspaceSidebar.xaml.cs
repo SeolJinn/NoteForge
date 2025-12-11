@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -153,7 +152,7 @@ public sealed partial class WorkspaceSidebar : UserControl
     {
         _currentMode = mode;
 
-        if (mode == SidebarViewMode.Folder)
+        if (mode is SidebarViewMode.Folder)
         {
             SectionsListView.Visibility = Visibility.Visible;
             SearchView.Visibility = Visibility.Collapsed;
@@ -169,7 +168,7 @@ public sealed partial class WorkspaceSidebar : UserControl
 
     public void LoadNotesForSearch(IEnumerable<Note> notes)
     {
-        _allNotes = notes.ToList();
+        _allNotes = [.. notes];
     }
 
     private void OnSearchTextBoxLoaded(object sender, RoutedEventArgs e)
@@ -232,7 +231,7 @@ public sealed partial class WorkspaceSidebar : UserControl
         var results = ParseAndSearch(query);
         ResultsListView.ItemsSource = results;
 
-        if (results.Count == 0)
+        if (results.Count is 0)
         {
             NoResultsText.Visibility = Visibility.Visible;
             ResultsListView.Visibility = Visibility.Collapsed;
@@ -259,8 +258,8 @@ public sealed partial class WorkspaceSidebar : UserControl
                 var start = index + prefix.Length;
                 var end = remainingQuery.IndexOf(' ', start);
                 var value = end >= 0
-                    ? remainingQuery.Substring(start, end - start)
-                    : remainingQuery.Substring(start);
+                    ? remainingQuery[start..end]
+                    : remainingQuery[start..];
 
                 filters[prefix.TrimEnd(':')] = value.Trim();
                 remainingQuery = remainingQuery.Remove(index, (end >= 0 ? end : remainingQuery.Length) - index);
@@ -315,7 +314,7 @@ public sealed partial class WorkspaceSidebar : UserControl
             {
                 if (contentMatches.Count > 0)
                 {
-                    contentMatches[contentMatches.Count - 1].IsLast = true;
+                    contentMatches[^1].IsLast = true;
                 }
 
                 searchResults.Add(new SearchResult(note, remainingQuery)
@@ -354,7 +353,7 @@ public sealed partial class WorkspaceSidebar : UserControl
         if (sender is Button button && button.Tag is MatchingLine matchingLine)
         {
             var note = FindNoteForMatchingLine(matchingLine);
-            if (note != null)
+            if (note is not null)
             {
                 MatchingLineSelected?.Invoke(this, (note, matchingLine.LineNumber));
             }

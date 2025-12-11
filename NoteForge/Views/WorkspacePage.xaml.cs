@@ -101,10 +101,8 @@ public sealed partial class WorkspacePage : Page
     private void OnManageVaultsClicked(object sender, EventArgs e)
     {
         var vaultWindow = new VaultManagerWindow();
-        vaultWindow.VaultSelected += (s, path) =>
-        {
-            DispatcherQueue.TryEnqueue(async () => await ResetWorkspaceAsync());
-        };
+        vaultWindow.VaultSelected += (s, path) 
+            => DispatcherQueue.TryEnqueue(async () => await ResetWorkspaceAsync());
         vaultWindow.Activate();
     }
 
@@ -132,7 +130,7 @@ public sealed partial class WorkspacePage : Page
         SplitterBorder.Visibility = Visibility.Visible;
         Sidebar.SetViewMode(SidebarViewMode.Folder);
 
-        if (SidebarColumn.ActualWidth == 0)
+        if (SidebarColumn.ActualWidth is 0)
         {
             SidebarColumn.Width = new GridLength(250);
             TitleBarSidebarColumn.Width = new GridLength(250);
@@ -152,7 +150,7 @@ public sealed partial class WorkspacePage : Page
         Sidebar.Visibility = Visibility.Visible;
         SplitterBorder.Visibility = Visibility.Visible;
 
-        if (SidebarColumn.ActualWidth == 0)
+        if (SidebarColumn.ActualWidth is 0)
         {
             SidebarColumn.Width = new GridLength(250);
             TitleBarSidebarColumn.Width = new GridLength(250);
@@ -180,10 +178,8 @@ public sealed partial class WorkspacePage : Page
             _tabManager.OpenTab(args.Note);
         }
 
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-        {
-            EditorView.NavigateToLine(args.LineNumber);
-        });
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () 
+            => EditorView.NavigateToLine(args.LineNumber));
     }
 
     private void OnTabSelected(object sender, Tab tab)
@@ -227,7 +223,7 @@ public sealed partial class WorkspacePage : Page
 
     private void UpdateEditorState()
     {
-        var showEditor = _selectedNote is not null && _tabManager.ActiveTab?.IsNewTab != true;
+        var showEditor = _selectedNote is not null && _tabManager.ActiveTab?.IsNewTab is not true;
         NewTabView.Visibility = showEditor ? Visibility.Collapsed : Visibility.Visible;
         EditorView.Visibility = showEditor ? Visibility.Visible : Visibility.Collapsed;
 
@@ -248,7 +244,7 @@ public sealed partial class WorkspacePage : Page
 
     private async void UpdatePreviewAsync()
     {
-        if (_selectedNote is null || EditorView.GetPreviewColumnWidth() == 0)
+        if (_selectedNote is null || EditorView.GetPreviewColumnWidth() is 0)
         {
             return;
         }
@@ -265,7 +261,7 @@ public sealed partial class WorkspacePage : Page
 
     private void OnTogglePreviewClicked(object sender, EventArgs e)
     {
-        var isHidden = EditorView.GetPreviewColumnWidth() == 0;
+        var isHidden = EditorView.GetPreviewColumnWidth() is 0;
         EditorView.SetPreviewColumnWidth(isHidden ? 1 : 0);
         if (isHidden) UpdatePreviewAsync();
     }
@@ -441,7 +437,7 @@ public sealed partial class WorkspacePage : Page
 
         searchBox.TextChanged += (s, args) =>
         {
-            if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
+            if (args.Reason is AutoSuggestionBoxTextChangeReason.UserInput)
             {
                 var query = searchBox.Text;
                 var searchResults = App.SearchService.SearchByName(allNotes, query);
@@ -472,7 +468,7 @@ public sealed partial class WorkspacePage : Page
 
         searchBox.PreviewKeyDown += (s, args) =>
         {
-            if (args.Key == Windows.System.VirtualKey.Escape)
+            if (args.Key is Windows.System.VirtualKey.Escape)
             {
                 popup.IsOpen = false;
                 args.Handled = true;
@@ -512,7 +508,7 @@ public sealed partial class WorkspacePage : Page
         dialog.Content = nameBox;
 
         var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameBox.Text))
+        if (result is ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameBox.Text))
         {
             await _mediator.Send(new CreateSectionCommandRequest(nameBox.Text));
             await LoadNotes();
@@ -539,7 +535,7 @@ public sealed partial class WorkspacePage : Page
         dialog.Content = nameBox;
 
         var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameBox.Text))
+        if (result is ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameBox.Text))
         {
             App.SectionService.RenameSection(section.Id, nameBox.Text);
             await LoadNotes();
@@ -559,7 +555,7 @@ public sealed partial class WorkspacePage : Page
         };
 
         var result = await dialog.ShowAsync();
-        if (result == ContentDialogResult.Primary)
+        if (result is ContentDialogResult.Primary)
         {
             App.SectionService.RemoveSection(section.Id);
             await LoadNotes();

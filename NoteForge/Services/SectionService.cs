@@ -106,12 +106,12 @@ public class SectionService
         }
     }
 
-    public bool IsFavorite(string noteFilePath)
+    public static bool IsFavorite(string noteFilePath)
     {
         return GetFavorites().Contains(noteFilePath);
     }
 
-    public List<string> GetFavorites()
+    public static List<string> GetFavorites()
     {
         var json = GetSetting(FavoritesKey, "[]");
         try
@@ -179,13 +179,13 @@ public class SectionService
 
     public void AssignNoteToSection(string noteFilePath, string sectionId)
     {
-        if (sectionId == FavoritesSectionId)
+        if (sectionId is FavoritesSectionId)
         {
             AddFavorite(noteFilePath);
             return;
         }
 
-        if (sectionId == AllNotesSectionId)
+        if (sectionId is AllNotesSectionId)
         {
             UnassignNote(noteFilePath);
             return;
@@ -221,7 +221,7 @@ public class SectionService
         var draggedIndex = Sections.IndexOf(draggedSection);
         var targetIndex = Sections.IndexOf(targetSection);
 
-        if (draggedIndex == -1 || targetIndex == -1)
+        if (draggedIndex is -1 || targetIndex is -1)
         {
             return;
         }
@@ -269,14 +269,14 @@ public class SectionService
             sectionOrder = [];
         }
 
-        if (sectionOrder.Count == 0)
+        if (sectionOrder.Count is 0)
         {
             sectionOrder = [FavoritesSectionId, .. customSectionsDict.Keys, AllNotesSectionId];
         }
 
         foreach (var sectionId in sectionOrder)
         {
-            if (sectionId == FavoritesSectionId)
+            if (sectionId is FavoritesSectionId)
             {
                 Sections.Add(new NoteSection
                 {
@@ -287,7 +287,7 @@ public class SectionService
                     IsBuiltIn = true
                 });
             }
-            else if (sectionId == AllNotesSectionId)
+            else if (sectionId is AllNotesSectionId)
             {
                 Sections.Add(new NoteSection
                 {

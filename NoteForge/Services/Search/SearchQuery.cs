@@ -11,7 +11,7 @@ public class SearchQuery
     public SearchQuery(string rawQuery)
     {
         RawQuery = rawQuery ?? string.Empty;
-        Filters = new Dictionary<string, string>();
+        Filters = [];
         NormalizedQuery = ParseQuery(rawQuery);
     }
 
@@ -33,8 +33,8 @@ public class SearchQuery
                 var start = index + prefix.Length;
                 var end = remainingQuery.IndexOf(' ', start);
                 var value = end >= 0
-                    ? remainingQuery.Substring(start, end - start)
-                    : remainingQuery.Substring(start);
+                    ? remainingQuery[start..end]
+                    : remainingQuery[start..];
 
                 Filters[prefix.TrimEnd(':')] = value.Trim();
                 remainingQuery = remainingQuery.Remove(index, (end >= 0 ? end : remainingQuery.Length) - index);

@@ -21,7 +21,7 @@ public class InFileTextSearchStrategy : ISearchStrategy<string, TextMatch>
         }
 
         var index = 0;
-        while ((index = content.IndexOf(query, index, StringComparison.OrdinalIgnoreCase)) != -1)
+        while ((index = content.IndexOf(query, index, StringComparison.OrdinalIgnoreCase)) is not -1)
         {
             matches.Add(new TextMatch
             {

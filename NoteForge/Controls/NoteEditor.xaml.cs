@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -20,7 +19,7 @@ public sealed partial class NoteEditor : UserControl
 
     private bool _suppressEvents;
     private readonly ISearchStrategy<string, TextMatch> _textSearchStrategy;
-    private List<TextMatch> _searchMatches = new();
+    private List<TextMatch> _searchMatches = [];
     private int _currentMatchIndex = -1;
 
     public NoteEditor()
@@ -77,7 +76,7 @@ public sealed partial class NoteEditor : UserControl
     public void SetPreviewColumnWidth(double width)
     {
         PreviewColumn.Width = new GridLength(width, width == 0 ? GridUnitType.Pixel : GridUnitType.Star);
-        PreviewToggleBtn.Content = width == 0 ? "<" : ">";
+        PreviewToggleBtn.Content = width is 0 ? "<" : ">";
     }
 
     public double GetPreviewColumnWidth()
@@ -144,8 +143,8 @@ public sealed partial class NoteEditor : UserControl
 
     private void OnEditorKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == VirtualKey.F &&
-            (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0)
+        if (e.Key is VirtualKey.F &&
+            (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) is not 0)
         {
             e.Handled = true;
             ShowSearchBar();
@@ -154,15 +153,15 @@ public sealed partial class NoteEditor : UserControl
 
     private void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == VirtualKey.Escape)
+        if (e.Key is VirtualKey.Escape)
         {
             e.Handled = true;
             HideSearchBar();
         }
-        else if (e.Key == VirtualKey.Enter)
+        else if (e.Key is VirtualKey.Enter)
         {
             e.Handled = true;
-            var isShiftPressed = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
+            var isShiftPressed = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) is not 0;
             if (isShiftPressed)
             {
                 NavigateToPreviousMatch();
@@ -172,12 +171,12 @@ public sealed partial class NoteEditor : UserControl
                 NavigateToNextMatch();
             }
         }
-        else if (e.Key == VirtualKey.Down)
+        else if (e.Key is VirtualKey.Down)
         {
             e.Handled = true;
             NavigateToNextMatch();
         }
-        else if (e.Key == VirtualKey.Up)
+        else if (e.Key is VirtualKey.Up)
         {
             e.Handled = true;
             NavigateToPreviousMatch();
@@ -235,9 +234,9 @@ public sealed partial class NoteEditor : UserControl
             return;
         }
 
-        _searchMatches = _textSearchStrategy.Search(content, searchText).ToList();
+        _searchMatches = [.. _textSearchStrategy.Search(content, searchText)];
 
-        if (_searchMatches.Any())
+        if (_searchMatches.Count is not 0)
         {
             _currentMatchIndex = 0;
         }
@@ -245,7 +244,7 @@ public sealed partial class NoteEditor : UserControl
 
     private void NavigateToNextMatch()
     {
-        if (!_searchMatches.Any())
+        if (_searchMatches.Count is 0)
         {
             return;
         }
@@ -256,7 +255,7 @@ public sealed partial class NoteEditor : UserControl
 
     private void NavigateToPreviousMatch()
     {
-        if (!_searchMatches.Any())
+        if (_searchMatches.Count is 0)
         {
             return;
         }

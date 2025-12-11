@@ -110,7 +110,7 @@ public class TabManager : ITabManager
                 OpenNewTab();
             }
         }
-        else if (Tabs.Count == 0)
+        else if (Tabs.Count is 0)
         {
             OpenNewTab();
         }
@@ -141,7 +141,7 @@ public class TabManager : ITabManager
         }
 
         int oldIndex = Tabs.IndexOf(tab);
-        if (oldIndex == -1 || oldIndex == newIndex)
+        if (oldIndex is -1 || oldIndex == newIndex)
         { 
             return;
         }

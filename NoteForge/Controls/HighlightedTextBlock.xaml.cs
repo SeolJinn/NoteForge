@@ -1,10 +1,8 @@
 using System;
-using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
-
 using Windows.UI;
 
 namespace NoteForge.Controls;
@@ -104,7 +102,7 @@ public sealed partial class HighlightedTextBlock : UserControl
         if (string.IsNullOrEmpty(highlight) || string.IsNullOrEmpty(text))
         {
             var run = new Run { Text = text };
-            if (TextForeground != null)
+            if (TextForeground is not null)
             {
                 run.Foreground = TextForeground;
             }
@@ -119,11 +117,11 @@ public sealed partial class HighlightedTextBlock : UserControl
             {
                 var matchIndex = text.IndexOf(highlight, index, comparison);
 
-                if (matchIndex == -1)
+                if (matchIndex is -1)
                 {
-                    var remainingText = text.Substring(index);
+                    var remainingText = text[index..];
                     var run = new Run { Text = remainingText };
-                    if (TextForeground != null)
+                    if (TextForeground is not null)
                     {
                         run.Foreground = TextForeground;
                     }
@@ -133,9 +131,9 @@ public sealed partial class HighlightedTextBlock : UserControl
 
                 if (matchIndex > index)
                 {
-                    var beforeMatch = text.Substring(index, matchIndex - index);
+                    var beforeMatch = text[index..matchIndex];
                     var run = new Run { Text = beforeMatch };
-                    if (TextForeground != null)
+                    if (TextForeground is not null)
                     {
                         run.Foreground = TextForeground;
                     }

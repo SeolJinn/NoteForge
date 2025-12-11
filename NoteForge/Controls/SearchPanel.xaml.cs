@@ -23,7 +23,7 @@ public sealed partial class SearchPanel : UserControl
 
     public void LoadNotes(IEnumerable<Note> notes)
     {
-        _allNotes = notes.ToList();
+        _allNotes = [.. notes];
         SearchTextBox.Text = string.Empty;
         ShowSearchOptions();
     }
@@ -92,7 +92,7 @@ public sealed partial class SearchPanel : UserControl
         var results = _searchStrategy.Search(_allNotes, query).ToList();
         ResultsListView.ItemsSource = results;
 
-        if (results.Count == 0)
+        if (results.Count is 0)
         {
             NoResultsText.Visibility = Visibility.Visible;
             ResultsListView.Visibility = Visibility.Collapsed;

@@ -32,7 +32,7 @@ public sealed class LoadWorkspaceQueryHandler(
 
         sectionService.OrganizeNotesIntoSections(notes);
 
-        if (tabManager.Tabs.Count == 0)
+        if (tabManager.Tabs.Count is 0)
         {
             tabManager.OpenNewTab();
         }
@@ -46,7 +46,7 @@ public sealed class LoadWorkspaceQueryHandler(
             VaultName: noteService.CurrentVaultName,
             VaultPath: $"Path: {noteService.CurrentNotebookPath}",
             Notes: notes,
-            Sections: sectionService.Sections.ToList(),
+            Sections: [.. sectionService.Sections],
             InitialNoteFilePath: initialNoteFilePath);
     }
 }

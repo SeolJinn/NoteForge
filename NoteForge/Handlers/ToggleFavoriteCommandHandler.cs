@@ -10,7 +10,7 @@ public sealed class ToggleFavoriteCommandHandler(SectionService sectionService) 
 {
     public ValueTask<bool> Handle(ToggleFavoriteCommandRequest request, CancellationToken cancellationToken)
     {
-        var isFavorite = sectionService.IsFavorite(request.Note.FilePath);
+        var isFavorite = SectionService.IsFavorite(request.Note.FilePath);
 
         if (isFavorite)
         {

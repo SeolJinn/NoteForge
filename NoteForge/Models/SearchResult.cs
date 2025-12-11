@@ -4,14 +4,14 @@ using System.Runtime.CompilerServices;
 
 namespace NoteForge.Models;
 
-public class SearchResult : INotifyPropertyChanged
+public partial class SearchResult(Note note, string searchQuery = "") : INotifyPropertyChanged
 {
-    private bool _isExpanded;
+    private bool _isExpanded = true;
 
-    public Note Note { get; set; } = null!;
+    public Note Note { get; set; } = note;
     public bool MatchesInTitle { get; set; }
-    public List<MatchingLine> MatchingLines { get; set; } = new();
-    public string SearchQuery { get; set; } = string.Empty;
+    public List<MatchingLine> MatchingLines { get; set; } = [];
+    public string SearchQuery { get; set; } = searchQuery;
 
     public bool IsExpanded
     {
@@ -30,13 +30,6 @@ public class SearchResult : INotifyPropertyChanged
     public int MatchCount => MatchingLines.Count;
 
     public bool ShouldShowMatchingLines => IsExpanded && MatchingLines.Count > 0;
-
-    public SearchResult(Note note, string searchQuery = "")
-    {
-        Note = note;
-        SearchQuery = searchQuery;
-        _isExpanded = true;
-    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

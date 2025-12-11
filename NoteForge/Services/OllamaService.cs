@@ -64,7 +64,7 @@ public class OllamaService
                 yield return chunk.Response;
             }
 
-            if (chunk?.Done == true)
+            if (chunk?.Done is true)
             {
                 yield break;
             }

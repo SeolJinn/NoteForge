@@ -35,6 +35,6 @@ public class NoteFileSearchStrategy : ISearchStrategy<IEnumerable<Note>, Note>
                 n.FilePath.Contains(query.NormalizedQuery, StringComparison.OrdinalIgnoreCase));
         }
 
-        return results.ToList();
+        return [.. results];
     }
 }
