@@ -19,15 +19,17 @@ public class CreateNoteCommandHandler(INoteService noteService) : IRequestHandle
 
         try
         {
+            var targetPath = request.TargetFolderPath ?? noteService.CurrentNotebookPath;
+
             string baseName = "Untitled";
             string fileName = baseName + ".md";
-            string filePath = Path.Combine(noteService.CurrentNotebookPath, fileName);
+            string filePath = Path.Combine(targetPath, fileName);
 
             int counter = 1;
             while (File.Exists(filePath))
             {
                 fileName = $"{baseName} {counter}.md";
-                filePath = Path.Combine(noteService.CurrentNotebookPath, fileName);
+                filePath = Path.Combine(targetPath, fileName);
                 counter++;
             }
 
@@ -48,4 +50,4 @@ public class CreateNoteCommandHandler(INoteService noteService) : IRequestHandle
     }
 }
 
-public sealed class CreateNoteCommandRequest : IRequest<Note?>;
+public sealed record CreateNoteCommandRequest(string? TargetFolderPath = null) : IRequest<Note?>;

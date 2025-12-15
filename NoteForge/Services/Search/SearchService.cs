@@ -3,7 +3,7 @@ using NoteForge.Interfaces;
 using NoteForge.Models;
 using NoteForge.Services.Search;
 
-namespace NoteForge.Services;
+namespace NoteForge.Services.Search;
 
 public class SearchService : ISearchService
 {

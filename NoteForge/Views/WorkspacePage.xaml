@@ -87,11 +87,10 @@
                                        VaultSelected="OnVaultItemClicked"
                                        ManageVaultsRequested="OnManageVaultsClicked"
                                        ToggleFavoriteRequested="OnToggleFavoriteClicked"
-                                       CreateSectionRequested="OnCreateSectionClicked"
-                                       RenameSectionRequested="OnRenameSectionClicked"
-                                       DeleteSectionRequested="OnDeleteSectionClicked"
-                                       NoteMovedToSection="OnNoteMovedToSection"
-                                       SectionsReordered="OnSectionsReordered"/>
+                                       CreateFolderRequested="OnCreateFolderClicked"
+                                       RenameFolderRequested="OnRenameFolderClicked"
+                                       DeleteFolderRequested="OnDeleteFolderClicked"
+                                       NoteMovedToFolder="OnNoteMovedToFolder"/>
 
             <!-- Splitter -->
             <Border Grid.Column="1"

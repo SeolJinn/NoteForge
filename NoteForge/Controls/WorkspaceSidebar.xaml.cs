@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -20,78 +21,143 @@ public sealed partial class WorkspaceSidebar : UserControl
     public event EventHandler<VaultInfo>? VaultSelected;
     public event EventHandler? ManageVaultsRequested;
     public event EventHandler<Note>? ToggleFavoriteRequested;
-    public event EventHandler<string>? CreateSectionRequested;
-    public event EventHandler<NoteSection>? RenameSectionRequested;
-    public event EventHandler<NoteSection>? DeleteSectionRequested;
-    public event EventHandler<(Note Note, string TargetSectionId)>? NoteMovedToSection;
-    public event EventHandler? SectionsReordered;
+    public event EventHandler<Folder>? CreateFolderRequested;
+    public event EventHandler<Folder>? RenameFolderRequested;
+    public event EventHandler<Folder>? DeleteFolderRequested;
+    public event EventHandler<(Note Note, Folder TargetFolder)>? NoteMovedToFolder;
 
-    private readonly List<SectionView> _sectionViews = [];
+    private readonly List<FolderView> _folderViews = [];
+    private SectionView? _favoritesView;
     private List<Note> _allNotes = [];
     private SidebarViewMode _currentMode = SidebarViewMode.Folder;
+    private Folder? _rootFolder;
 
     public WorkspaceSidebar()
     {
         InitializeComponent();
     }
 
-    public void LoadSections(IEnumerable<NoteSection> sections)
+    public void LoadFolders(Folder rootFolder, NoteSection? favoritesSection)
     {
-        SectionsListView.Items.Clear();
-        _sectionViews.Clear();
+        FoldersContainer.Children.Clear();
+        _folderViews.Clear();
+        _favoritesView = null;
+        _rootFolder = rootFolder;
 
-        foreach (var section in sections)
+        if (favoritesSection is not null && favoritesSection.IsVisible)
         {
-            var sectionView = new SectionView(section);
-            sectionView.NoteSelected += OnSectionNoteSelected;
-            sectionView.ToggleFavoriteRequested += OnSectionToggleFavorite;
-            sectionView.RenameSectionRequested += (s, e) => RenameSectionRequested?.Invoke(this, section);
-            sectionView.DeleteSectionRequested += (s, e) => DeleteSectionRequested?.Invoke(this, section);
-            sectionView.NoteMovedToSection += OnNoteMovedToSection;
+            _favoritesView = new SectionView(favoritesSection);
+            _favoritesView.NoteSelected += OnFolderNoteSelected;
+            _favoritesView.ToggleFavoriteRequested += OnFolderToggleFavorite;
+            FoldersContainer.Children.Add(_favoritesView);
+        }
 
-            _sectionViews.Add(sectionView);
-            SectionsListView.Items.Add(sectionView);
+        foreach (var subfolder in rootFolder.SubFolders)
+        {
+            var folderView = CreateFolderView(subfolder);
+            _folderViews.Add(folderView);
+            FoldersContainer.Children.Add(folderView);
+        }
+
+        foreach (var note in rootFolder.Notes)
+        {
+            var noteItem = CreateNoteItem(note);
+            FoldersContainer.Children.Add(noteItem);
         }
     }
 
-    private void OnSectionDragCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    private Border CreateNoteItem(Note note)
     {
-        var reorderedSections = new List<NoteSection>();
-        foreach (var item in SectionsListView.Items)
+        var border = new Border
         {
-            if (item is SectionView sectionView)
-            {
-                reorderedSections.Add(sectionView.Section);
-            }
-        }
+            CornerRadius = new Microsoft.UI.Xaml.CornerRadius(8),
+            Margin = new Thickness(10, 2, 10, 2),
+            Padding = new Thickness(15, 10, 15, 10),
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                note.IsSelected
+                    ? Windows.UI.Color.FromArgb(255, 52, 52, 52)
+                    : Microsoft.UI.Colors.Transparent),
+            Tag = note,
+            CanDrag = true
+        };
 
-        App.SectionService.Sections.Clear();
-        foreach (var section in reorderedSections)
+        var textBlock = new TextBlock
         {
-            App.SectionService.Sections.Add(section);
-        }
+            Text = note.Filename,
+            FontSize = 14,
+            Foreground = (Microsoft.UI.Xaml.Media.SolidColorBrush)Application.Current.Resources["TextPrimary"],
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
 
-        SectionsReordered?.Invoke(this, EventArgs.Empty);
+        border.Child = textBlock;
+        border.Tapped += (s, e) => OnFolderNoteSelected(s, note);
+        border.DragStarting += OnRootNoteDragStarting;
+
+        var menuFlyout = new MenuFlyout
+        {
+            Placement = FlyoutPlacementMode.RightEdgeAlignedTop
+        };
+
+        MenuFlyoutItem menuItem = new()
+        {
+            Text = "Add to favorites",
+            Tag = note,
+            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 218, 218, 218)),
+            Icon = new FontIcon { Glyph = "\uE734", FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe MDL2 Assets") }
+        };
+        menuItem.Click += (s, e) => OnFolderToggleFavorite(s, note);
+
+        menuFlyout.Items.Add(menuItem);
+        border.ContextFlyout = menuFlyout;
+
+        return border;
     }
 
-    private void OnSectionNoteSelected(object? sender, Note note)
+    private FolderView CreateFolderView(Folder folder)
+    {
+        var folderView = new FolderView(folder, _rootFolder);
+        folderView.NoteSelected += OnFolderNoteSelected;
+        folderView.CreateSubfolderRequested += OnCreateSubfolderRequested;
+        folderView.RenameFolderRequested += OnRenameFolderRequested;
+        folderView.DeleteFolderRequested += OnDeleteFolderRequested;
+        folderView.NoteMovedToFolder += OnNoteMovedToFolder;
+        folderView.ToggleFavoriteRequested += OnFolderToggleFavorite;
+        return folderView;
+    }
+
+    private void OnFolderNoteSelected(object? sender, Note note)
     {
         NoteSelected?.Invoke(this, note);
     }
 
-    private void OnSectionToggleFavorite(object? sender, Note note)
+    private void OnFolderToggleFavorite(object? sender, Note note)
     {
         ToggleFavoriteRequested?.Invoke(this, note);
     }
 
-    private void OnNoteMovedToSection(object? sender, (Note Note, string TargetSectionId) e)
+    private void OnCreateSubfolderRequested(object? sender, Folder folder)
     {
-        NoteMovedToSection?.Invoke(this, e);
+        CreateFolderRequested?.Invoke(this, folder);
     }
 
-    private void OnCreateSectionClicked(object sender, RoutedEventArgs e)
+    private void OnRenameFolderRequested(object? sender, Folder folder)
     {
-        CreateSectionRequested?.Invoke(this, string.Empty);
+        RenameFolderRequested?.Invoke(this, folder);
+    }
+
+    private void OnDeleteFolderRequested(object? sender, Folder folder)
+    {
+        DeleteFolderRequested?.Invoke(this, folder);
+    }
+
+    private void OnNoteMovedToFolder(object? sender, (Note Note, Folder TargetFolder) e)
+    {
+        NoteMovedToFolder?.Invoke(this, e);
+    }
+
+    private void OnCreateFolderClicked(object sender, RoutedEventArgs e)
+    {
+        CreateFolderRequested?.Invoke(this, null!);
     }
 
     public void SetVaultName(string name)
@@ -101,9 +167,29 @@ public sealed partial class WorkspaceSidebar : UserControl
 
     public void SetSelectedNote(Note? note)
     {
-        foreach (var sectionView in _sectionViews)
+        _favoritesView?.SetSelectedNote(note);
+
+        foreach (var folderView in _folderViews)
         {
-            sectionView.SetSelectedNote(note);
+            folderView.SetSelectedNote(note);
+        }
+
+        foreach (UIElement child in FoldersContainer.Children)
+        {
+            if (child is Border border && border.Tag is Note borderNote)
+            {
+                var isSelected = note is not null &&
+                                !string.IsNullOrEmpty(borderNote.FilePath) &&
+                                !string.IsNullOrEmpty(note.FilePath) &&
+                                string.Equals(borderNote.FilePath, note.FilePath, StringComparison.OrdinalIgnoreCase);
+
+                borderNote.IsSelected = isSelected;
+
+                border.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    isSelected
+                        ? Windows.UI.Color.FromArgb(255, 52, 52, 52)
+                        : Microsoft.UI.Colors.Transparent);
+            }
         }
     }
 
@@ -154,12 +240,12 @@ public sealed partial class WorkspaceSidebar : UserControl
 
         if (mode is SidebarViewMode.Folder)
         {
-            SectionsListView.Visibility = Visibility.Visible;
+            FoldersContainer.Visibility = Visibility.Visible;
             SearchView.Visibility = Visibility.Collapsed;
         }
         else
         {
-            SectionsListView.Visibility = Visibility.Collapsed;
+            FoldersContainer.Visibility = Visibility.Collapsed;
             SearchView.Visibility = Visibility.Visible;
             SearchTextBox.Text = string.Empty;
             ShowSearchOptions();
@@ -373,5 +459,105 @@ public sealed partial class WorkspaceSidebar : UserControl
             }
         }
         return null;
+    }
+
+    private void OnRootDragOver(object sender, Microsoft.UI.Xaml.DragEventArgs e)
+    {
+        if (e.DataView.Properties.ContainsKey("NoteFilePath"))
+        {
+            e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+            e.DragUIOverride.Caption = "Move to vault root";
+            e.DragUIOverride.IsCaptionVisible = true;
+            e.DragUIOverride.IsGlyphVisible = true;
+        }
+        else
+        {
+            e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.None;
+        }
+    }
+
+    private void OnRootDrop(object sender, Microsoft.UI.Xaml.DragEventArgs e)
+    {
+        if (e.DataView.Properties.TryGetValue("NoteFilePath", out var noteFilePathObj) && noteFilePathObj is string noteFilePath)
+        {
+            if (_rootFolder is null)
+                return;
+
+            Note? note = FindNoteInFolderTree(_rootFolder, noteFilePath)
+                         ?? _allNotes.FirstOrDefault(n => n.FilePath == noteFilePath);
+
+            if (note is not null)
+            {
+                NoteMovedToFolder?.Invoke(this, (Note: note, TargetFolder: _rootFolder));
+            }
+        }
+    }
+
+    private Note? FindNoteInFolderTree(Folder folder, string noteFilePath)
+    {
+        var note = folder.Notes.FirstOrDefault(n => n.FilePath == noteFilePath);
+        if (note is not null)
+        {
+            return note;
+        }
+
+        foreach (var subfolder in folder.SubFolders)
+        {
+            note = FindNoteInFolderTree(subfolder, noteFilePath);
+            if (note is not null)
+            {
+                return note;
+            }
+        }
+
+        return null;
+    }
+
+    private void OnRootNoteDragStarting(UIElement sender, Microsoft.UI.Xaml.DragStartingEventArgs args)
+    {
+        if (sender is Border border && border.Tag is Note note)
+        {
+            args.Data.Properties.Add("NoteFilePath", note.FilePath);
+            args.Data.RequestedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
+        }
+    }
+
+    public Dictionary<string, bool> GetFolderExpandedStates()
+    {
+        var states = new Dictionary<string, bool>();
+        if (_rootFolder is not null)
+        {
+            CollectExpandedStates(_rootFolder, states);
+        }
+        return states;
+    }
+
+    private void CollectExpandedStates(Folder folder, Dictionary<string, bool> states)
+    {
+        states[folder.DirectoryPath] = folder.IsExpanded;
+        foreach (var subfolder in folder.SubFolders)
+        {
+            CollectExpandedStates(subfolder, states);
+        }
+    }
+
+    public void RestoreFolderExpandedStates(Dictionary<string, bool> states)
+    {
+        if (_rootFolder is not null)
+        {
+            ApplyExpandedStates(_rootFolder, states);
+        }
+    }
+
+    private void ApplyExpandedStates(Folder folder, Dictionary<string, bool> states)
+    {
+        if (states.TryGetValue(folder.DirectoryPath, out var isExpanded))
+        {
+            folder.IsExpanded = isExpanded;
+        }
+        foreach (var subfolder in folder.SubFolders)
+        {
+            ApplyExpandedStates(subfolder, states);
+        }
     }
 }

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using NoteForge.Interfaces;
 using NoteForge.Services;
+using NoteForge.Services.Search;
 
 namespace NoteForge;
 
@@ -19,6 +20,7 @@ public partial class App : Application
     public static IMediator Mediator => Services.GetRequiredService<IMediator>();
     public static ILoggerFactory LoggerFactory => Services.GetRequiredService<ILoggerFactory>();
     public static SectionService SectionService => Services.GetRequiredService<SectionService>();
+    public static FolderService FolderService => Services.GetRequiredService<FolderService>();
     public static ISearchService SearchService => Services.GetRequiredService<ISearchService>();
 
     public App()
@@ -44,6 +46,7 @@ public partial class App : Application
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<OllamaService>();
         services.AddSingleton<SectionService>();
+        services.AddSingleton<FolderService>();
         services.AddSingleton<ISearchService, SearchService>();
 
         // Register Mediator

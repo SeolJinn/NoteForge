@@ -60,11 +60,16 @@ public sealed partial class WorkspacePage : Page
         var workspace = await _mediator.Send(new LoadWorkspaceQueryRequest());
 
         Sidebar.SetVaultName(workspace.VaultName);
-        Sidebar.LoadSections(workspace.Sections);
+
+        if (workspace.RootFolder is not null)
+        {
+            Sidebar.LoadFolders(workspace.RootFolder, workspace.FavoritesSection);
+        }
 
         if (workspace.InitialNoteFilePath is not null)
         {
-            var activeNote = workspace.Notes.FirstOrDefault(n => n.FilePath == workspace.InitialNoteFilePath);
+            var allNotes = (await _mediator.Send(new GetNotesQueryRequest())).ToList();
+            var activeNote = allNotes.FirstOrDefault(n => n.FilePath == workspace.InitialNoteFilePath);
             if (activeNote is not null)
             {
                 SetSelectedNote(activeNote);
@@ -139,11 +144,7 @@ public sealed partial class WorkspacePage : Page
 
     private async void OnSearchViewClicked(object sender, RoutedEventArgs e)
     {
-        var workspace = await _mediator.Send(new LoadWorkspaceQueryRequest());
-        var allNotes = workspace.Sections
-            .SelectMany(s => s.Notes)
-            .DistinctBy(n => n.FilePath)
-            .ToList();
+        var allNotes = (await _mediator.Send(new GetNotesQueryRequest())).ToList();
 
         Sidebar.LoadNotesForSearch(allNotes);
         Sidebar.SetViewMode(SidebarViewMode.Search);
@@ -384,11 +385,7 @@ public sealed partial class WorkspacePage : Page
 
     private async void OnGoToFileClicked(object sender, RoutedEventArgs e)
     {
-        var workspace = await _mediator.Send(new LoadWorkspaceQueryRequest());
-        var allNotes = workspace.Sections
-            .SelectMany(s => s.Notes)
-            .DistinctBy(n => n.FilePath)
-            .ToList();
+        var allNotes = (await _mediator.Send(new GetNotesQueryRequest())).ToList();
 
         var searchBox = new AutoSuggestBox
         {
@@ -488,11 +485,11 @@ public sealed partial class WorkspacePage : Page
         await LoadNotes();
     }
 
-    private async void OnCreateSectionClicked(object sender, string e)
+    private async void OnCreateFolderClicked(object sender, Folder? folder)
     {
         var dialog = new ContentDialog
         {
-            Title = "New Section",
+            Title = "New Folder",
             PrimaryButtonText = "Create",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary,
@@ -501,7 +498,7 @@ public sealed partial class WorkspacePage : Page
 
         var nameBox = new TextBox
         {
-            PlaceholderText = "Section name",
+            PlaceholderText = "Folder name",
             Margin = new Thickness(0, 8, 0, 0)
         };
 
@@ -510,16 +507,17 @@ public sealed partial class WorkspacePage : Page
         var result = await dialog.ShowAsync();
         if (result is ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameBox.Text))
         {
-            await _mediator.Send(new CreateSectionCommandRequest(nameBox.Text));
+            var folderPath = folder?.DirectoryPath ?? _noteService.CurrentNotebookPath;
+            await _mediator.Send(new CreateFolderCommandRequest(folderPath, nameBox.Text));
             await LoadNotes();
         }
     }
 
-    private async void OnRenameSectionClicked(object sender, NoteSection section)
+    private async void OnRenameFolderClicked(object sender, Folder folder)
     {
         var dialog = new ContentDialog
         {
-            Title = "Rename Section",
+            Title = "Rename Folder",
             PrimaryButtonText = "Rename",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Primary,
@@ -528,7 +526,7 @@ public sealed partial class WorkspacePage : Page
 
         var nameBox = new TextBox
         {
-            Text = section.Name,
+            Text = folder.Name,
             Margin = new Thickness(0, 8, 0, 0)
         };
 
@@ -537,17 +535,23 @@ public sealed partial class WorkspacePage : Page
         var result = await dialog.ShowAsync();
         if (result is ContentDialogResult.Primary && !string.IsNullOrWhiteSpace(nameBox.Text))
         {
-            App.SectionService.RenameSection(section.Id, nameBox.Text);
+            await _mediator.Send(new RenameFolderCommandRequest(folder.DirectoryPath, nameBox.Text));
             await LoadNotes();
         }
     }
 
-    private async void OnDeleteSectionClicked(object sender, NoteSection section)
+    private async void OnDeleteFolderClicked(object sender, Folder folder)
     {
+        if (!folder.IsEmpty)
+        {
+            await _dialogService.ShowErrorAsync("Cannot delete a non-empty folder. Please remove all notes and subfolders first.", XamlRoot);
+            return;
+        }
+
         var dialog = new ContentDialog
         {
-            Title = "Delete Section",
-            Content = $"Are you sure you want to delete '{section.Name}'?",
+            Title = "Delete Folder",
+            Content = $"Are you sure you want to delete '{folder.Name}'?",
             PrimaryButtonText = "Delete",
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Close,
@@ -557,26 +561,25 @@ public sealed partial class WorkspacePage : Page
         var result = await dialog.ShowAsync();
         if (result is ContentDialogResult.Primary)
         {
-            App.SectionService.RemoveSection(section.Id);
+            await _mediator.Send(new DeleteFolderCommandRequest(folder.DirectoryPath));
             await LoadNotes();
         }
     }
 
-    private async void OnNoteMovedToSection(object sender, (Note Note, string TargetSectionId) e)
+    private async void OnNoteMovedToFolder(object sender, (Note Note, Folder TargetFolder) e)
     {
         var wasSelected = _selectedNote?.FilePath == e.Note.FilePath;
-        App.SectionService.AssignNoteToSection(e.Note.FilePath, e.TargetSectionId);
+        var expandedStates = Sidebar.GetFolderExpandedStates();
+
+        await _mediator.Send(new MoveNoteToFolderCommandRequest(e.Note, e.TargetFolder.DirectoryPath));
         await LoadNotes();
+
+        Sidebar.RestoreFolderExpandedStates(expandedStates);
 
         if (wasSelected && _selectedNote is not null)
         {
             Sidebar.SetSelectedNote(_selectedNote);
         }
-    }
-
-    private async void OnSectionsReordered(object sender, EventArgs e)
-    {
-        await LoadNotes();
     }
 
     private async void OnGenerateSummaryClicked(object sender, EventArgs e)

@@ -20,48 +20,34 @@
 
     <Grid RowDefinitions="*, Auto" Background="{StaticResource SideBar}">
         <Grid Grid.Row="0">
-            <ListView x:Name="SectionsListView"
-                      SelectionMode="None"
-                      CanReorderItems="True"
-                      CanDragItems="True"
-                      AllowDrop="True"
-                      DragItemsCompleted="OnSectionDragCompleted"
-                      Background="Transparent">
-                <ListView.Resources>
-                    <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent"/>
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent"/>
-                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent"/>
-                    <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent"/>
-                </ListView.Resources>
-                <ListView.ItemContainerStyle>
-                    <Style TargetType="ListViewItem">
-                        <Setter Property="Padding" Value="0"/>
-                        <Setter Property="Margin" Value="0"/>
-                        <Setter Property="MinHeight" Value="0"/>
-                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                    </Style>
-                </ListView.ItemContainerStyle>
-                <ListView.ContextFlyout>
-                    <MenuFlyout Placement="RightEdgeAlignedTop">
-                        <MenuFlyout.MenuFlyoutPresenterStyle>
-                            <Style TargetType="MenuFlyoutPresenter">
-                                <Setter Property="Background" Value="{StaticResource SideBar}"/>
-                                <Setter Property="BorderBrush" Value="{StaticResource Separator}"/>
-                                <Setter Property="BorderThickness" Value="1"/>
-                                <Setter Property="CornerRadius" Value="8"/>
-                                <Setter Property="Padding" Value="4"/>
-                            </Style>
-                        </MenuFlyout.MenuFlyoutPresenterStyle>
-                        <MenuFlyoutItem Text="New section"
-                                        Click="OnCreateSectionClicked"
-                                        Foreground="#DADADA">
-                            <MenuFlyoutItem.Icon>
-                                <FontIcon Glyph="&#xE710;" FontFamily="Segoe MDL2 Assets"/>
-                            </MenuFlyoutItem.Icon>
-                        </MenuFlyoutItem>
-                    </MenuFlyout>
-                </ListView.ContextFlyout>
-            </ListView>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="FoldersContainer"
+                            Background="Transparent"
+                            AllowDrop="True"
+                            DragOver="OnRootDragOver"
+                            Drop="OnRootDrop">
+                    <StackPanel.ContextFlyout>
+                        <MenuFlyout Placement="RightEdgeAlignedTop">
+                            <MenuFlyout.MenuFlyoutPresenterStyle>
+                                <Style TargetType="MenuFlyoutPresenter">
+                                    <Setter Property="Background" Value="{StaticResource SideBar}"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource Separator}"/>
+                                    <Setter Property="BorderThickness" Value="1"/>
+                                    <Setter Property="CornerRadius" Value="8"/>
+                                    <Setter Property="Padding" Value="4"/>
+                                </Style>
+                            </MenuFlyout.MenuFlyoutPresenterStyle>
+                            <MenuFlyoutItem Text="New folder"
+                                            Click="OnCreateFolderClicked"
+                                            Foreground="#DADADA">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE8F4;" FontSize="16"/>
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
+                        </MenuFlyout>
+                    </StackPanel.ContextFlyout>
+                </StackPanel>
+            </ScrollViewer>
 
             <Grid x:Name="SearchView" Visibility="Collapsed" RowDefinitions="Auto, *" Padding="10">
                 <TextBox x:Name="SearchTextBox"

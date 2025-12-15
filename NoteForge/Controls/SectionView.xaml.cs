@@ -39,7 +39,7 @@ public sealed partial class SectionView : UserControl
         HeaderClicked?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnHeaderPointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    private void OnHeaderPointerEntered(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Grid grid)
         {
@@ -47,7 +47,7 @@ public sealed partial class SectionView : UserControl
         }
     }
 
-    private void OnHeaderPointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    private void OnHeaderPointerExited(object sender, PointerRoutedEventArgs e)
     {
         if (sender is Grid grid)
         {
@@ -117,16 +117,7 @@ public sealed partial class SectionView : UserControl
     {
         if (e.DataView.Properties.TryGetValue("NoteFilePath", out var noteFilePathObj) && noteFilePathObj is string noteFilePath)
         {
-            Note? note = Section.Notes.FirstOrDefault(n => n.FilePath == noteFilePath);
-            if (note is null)
-            {
-                foreach (var section in App.SectionService.Sections)
-                {
-                    note = section.Notes.FirstOrDefault(n => n.FilePath == noteFilePath);
-                    if (note is not null) break;
-                }
-            }
-
+            var note = Section.Notes.FirstOrDefault(n => n.FilePath == noteFilePath);
             if (note is not null)
             {
                 NoteMovedToSection?.Invoke(this, (Note: note, TargetSectionId: Section.Id));

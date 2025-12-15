@@ -13,6 +13,7 @@ public sealed class LoadWorkspaceQueryHandler(
     INoteService noteService,
     ITabManager tabManager,
     SectionService sectionService,
+    FolderService folderService,
     IMediator mediator) : IRequestHandler<LoadWorkspaceQueryRequest, LoadWorkspaceQueryResponse>
 {
     public async ValueTask<LoadWorkspaceQueryResponse> Handle(LoadWorkspaceQueryRequest request, CancellationToken cancellationToken)
@@ -23,14 +24,17 @@ public sealed class LoadWorkspaceQueryHandler(
                 IsConfigured: false,
                 VaultName: "No vault selected",
                 VaultPath: "No vault selected",
-                Notes: [],
-                Sections: [],
+                RootFolder: null,
+                FavoritesSection: null,
                 InitialNoteFilePath: null);
         }
 
         var notes = (await mediator.Send(new GetNotesQueryRequest(), cancellationToken)).ToList();
 
-        sectionService.OrganizeNotesIntoSections(notes);
+        var rootFolder = folderService.BuildFolderTree(noteService.CurrentNotebookPath);
+        folderService.LoadExpandedState(rootFolder);
+
+        var favoritesSection = sectionService.GetFavoritesSection(notes);
 
         if (tabManager.Tabs.Count is 0)
         {
@@ -45,8 +49,8 @@ public sealed class LoadWorkspaceQueryHandler(
             IsConfigured: true,
             VaultName: noteService.CurrentVaultName,
             VaultPath: $"Path: {noteService.CurrentNotebookPath}",
-            Notes: notes,
-            Sections: [.. sectionService.Sections],
+            RootFolder: rootFolder,
+            FavoritesSection: favoritesSection,
             InitialNoteFilePath: initialNoteFilePath);
     }
 }
@@ -57,6 +61,6 @@ public sealed record LoadWorkspaceQueryResponse(
     bool IsConfigured,
     string VaultName,
     string VaultPath,
-    List<Note> Notes,
-    List<NoteSection> Sections,
+    Folder? RootFolder,
+    NoteSection? FavoritesSection,
     string? InitialNoteFilePath);

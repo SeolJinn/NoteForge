@@ -22,7 +22,7 @@ public class GetNotesQueryHandler(INoteService noteService) : IRequestHandler<Ge
 
         try
         {
-            var files = Directory.EnumerateFiles(noteService.CurrentNotebookPath, "*.md");
+            var files = Directory.EnumerateFiles(noteService.CurrentNotebookPath, "*.md", SearchOption.AllDirectories);
 
             foreach (var file in files)
             {
