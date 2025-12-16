@@ -3,11 +3,12 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using NoteForge.Handlers.Notes;
 using NoteForge.Interfaces;
 using NoteForge.Models;
 using NoteForge.Services;
 
-namespace NoteForge.Handlers;
+namespace NoteForge.Handlers.Workspace;
 
 public sealed class LoadWorkspaceQueryHandler(
     INoteService noteService,

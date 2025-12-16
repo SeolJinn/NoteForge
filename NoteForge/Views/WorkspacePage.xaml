@@ -6,6 +6,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:NoteForge.Controls"
+    xmlns:behaviors="using:NoteForge.Behaviors"
     mc:Ignorable="d"
     Background="{StaticResource AppBackground}">
 
@@ -97,11 +98,10 @@
                     x:Name="SplitterBorder"
                     Width="4"
                     Background="Transparent"
-                    PointerEntered="OnSplitterPointerEntered"
-                    PointerExited="OnSplitterPointerExited"
-                    PointerPressed="OnSplitterPointerPressed"
-                    PointerMoved="OnSplitterPointerMoved"
-                    PointerReleased="OnSplitterPointerReleased">
+                    behaviors:SplitterDragBehavior.IsEnabled="True"
+                    behaviors:SplitterDragBehavior.TargetColumn="{x:Bind SidebarColumn}"
+                    behaviors:SplitterDragBehavior.TitleBarColumn="{x:Bind TitleBarSidebarColumn}"
+                    behaviors:SplitterDragBehavior.Indicator="{x:Bind SplitterIndicator}">
                 <Rectangle x:Name="SplitterIndicator"
                            Width="1"
                            Fill="{StaticResource Separator}"

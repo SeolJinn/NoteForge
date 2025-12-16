@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Mediator;
 using NoteForge.Interfaces;
 
-namespace NoteForge.Handlers;
+namespace NoteForge.Handlers.Workspace;
 
 public sealed class SwitchVaultCommandHandler(INoteService noteService) : IRequestHandler<SwitchVaultCommandRequest, SwitchVaultCommandResponse>
 {

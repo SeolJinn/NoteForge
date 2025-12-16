@@ -12,10 +12,6 @@
 
     <UserControl.Resources>
         <converters:SidebarBackgroundColorConverter x:Key="SidebarBackgroundColorConverter"/>
-        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
-        <converters:CollectionCountToVisibilityConverter x:Key="CollectionCountToVisibilityConverter"/>
-        <converters:BoolToChevronConverter x:Key="BoolToChevronConverter"/>
-        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     </UserControl.Resources>
 
     <Grid RowDefinitions="*, Auto" Background="{StaticResource SideBar}">
@@ -76,297 +72,29 @@
                 </TextBox>
 
                 <Grid Grid.Row="1">
-                    <StackPanel x:Name="SearchOptionsMenu" Spacing="8">
-                        <TextBlock Text="Search options"
-                                   FontSize="13"
-                                   Foreground="{StaticResource TextPrimary}"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,0,8"/>
+                    <controls:SearchOptionsPanel x:Name="SearchOptions"
+                                                PathFilterRequested="OnPathFilterRequested"
+                                                FileFilterRequested="OnFileFilterRequested"/>
 
-                        <Button Background="Transparent"
-                                BorderThickness="0"
-                                Padding="0"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                Click="OnPathFilterClicked">
-                            <Button.Resources>
-                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
-                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
-                            </Button.Resources>
-                            <StackPanel>
-                                <TextBlock FontSize="12" Foreground="{StaticResource TextPrimary}">
-                                    <Run Text="path:" FontWeight="SemiBold"/>
-                                    <Run Text=" match path of the file" Foreground="{StaticResource Gray500}"/>
-                                </TextBlock>
-                            </StackPanel>
-                        </Button>
+                    <controls:SearchResultsPanel x:Name="SearchResultsControl"
+                                                Visibility="Collapsed"
+                                                NoteSelected="OnSearchResultNoteSelected"
+                                                MatchingLineSelected="OnSearchResultMatchingLineSelected"/>
 
-                        <Button Background="Transparent"
-                                BorderThickness="0"
-                                Padding="0"
-                                HorizontalAlignment="Stretch"
-                                HorizontalContentAlignment="Left"
-                                Click="OnFileFilterClicked">
-                            <Button.Resources>
-                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="Transparent"/>
-                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="Transparent"/>
-                            </Button.Resources>
-                            <StackPanel>
-                                <TextBlock FontSize="12" Foreground="{StaticResource TextPrimary}">
-                                    <Run Text="file:" FontWeight="SemiBold"/>
-                                    <Run Text=" match file name" Foreground="{StaticResource Gray500}"/>
-                                </TextBlock>
-                            </StackPanel>
-                        </Button>
-
-                        <TextBlock x:Name="InitialNoResultsText"
-                                   Text="No matches found"
-                                   FontSize="13"
-                                   Foreground="{StaticResource TextSecondary}"
-                                   HorizontalAlignment="Center"
-                                   Margin="0,40,0,0"/>
-                    </StackPanel>
-
-                    <Grid x:Name="ResultsContainer" Visibility="Collapsed">
-                        <TextBlock x:Name="NoResultsText"
-                                   Text="No matches found"
-                                   FontSize="13"
-                                   Foreground="{StaticResource TextSecondary}"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   Visibility="Collapsed"/>
-
-                        <ListView x:Name="ResultsListView"
-                                  SelectionMode="Single"
-                                  SelectionChanged="OnResultSelected"
-                                  Background="Transparent">
-                            <ListView.Resources>
-                                <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent"/>
-                                <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent"/>
-                                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent"/>
-                                <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent"/>
-                            </ListView.Resources>
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <Setter Property="Padding" Value="0"/>
-                                    <Setter Property="Margin" Value="0,0,0,4"/>
-                                    <Setter Property="MinHeight" Value="0"/>
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                </Style>
-                            </ListView.ItemContainerStyle>
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="models:SearchResult">
-                                    <StackPanel Spacing="0">
-                                        <Grid Background="Transparent"
-                                              Padding="10,8"
-                                              Tapped="OnSearchResultHeaderTapped"
-                                              Tag="{x:Bind}">
-                                            <Grid.Resources>
-                                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2A2A2A"/>
-                                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#333333"/>
-                                            </Grid.Resources>
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <FontIcon Glyph="{x:Bind IsExpanded, Converter={StaticResource BoolToChevronConverter}, Mode=OneWay}"
-                                                          FontSize="10"
-                                                          Foreground="{StaticResource TextSecondary}"
-                                                          VerticalAlignment="Center"
-                                                          Visibility="{x:Bind MatchingLines, Converter={StaticResource CollectionCountToVisibilityConverter}}"/>
-                                                <controls:HighlightedTextBlock Text="{x:Bind Note.Filename}"
-                                                                              Highlight="{x:Bind SearchQuery}"
-                                                                              TextFontSize="13"
-                                                                              TextForeground="{StaticResource TextPrimary}"
-                                                                              VerticalAlignment="Center"/>
-                                                <TextBlock Text="{x:Bind MatchCount, Mode=OneWay}"
-                                                           FontSize="11"
-                                                           Foreground="{StaticResource Gray600}"
-                                                           VerticalAlignment="Center"
-                                                           Visibility="{x:Bind MatchingLines, Converter={StaticResource CollectionCountToVisibilityConverter}}"/>
-                                            </StackPanel>
-                                        </Grid>
-                                        <Border Background="#1E1E1E"
-                                                CornerRadius="4"
-                                                Padding="8,8,8,4"
-                                                Margin="10,0,10,4"
-                                                Visibility="{x:Bind ShouldShowMatchingLines, Converter={StaticResource BoolToVisibilityConverter}, Mode=OneWay}">
-                                            <ItemsControl ItemsSource="{x:Bind MatchingLines}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate x:DataType="models:MatchingLine">
-                                                        <Grid Margin="0,0,0,4">
-                                                            <Grid.RowDefinitions>
-                                                                <RowDefinition Height="Auto"/>
-                                                                <RowDefinition Height="Auto"/>
-                                                            </Grid.RowDefinitions>
-                                                            <Button Grid.Row="0"
-                                                                    Background="Transparent"
-                                                                    BorderThickness="0"
-                                                                    Padding="0"
-                                                                    HorizontalAlignment="Stretch"
-                                                                    HorizontalContentAlignment="Left"
-                                                                    Tag="{x:Bind}"
-                                                                    Click="OnMatchingLineClicked">
-                                                                <Button.Resources>
-                                                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2A2A2A"/>
-                                                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#333333"/>
-                                                                </Button.Resources>
-                                                                <controls:HighlightedTextBlock Text="{x:Bind Text}"
-                                                                                              Highlight="{x:Bind SearchQuery}"
-                                                                                              TextFontSize="11"
-                                                                                              TextForeground="{StaticResource TextSecondary}"/>
-                                                            </Button>
-                                                            <Rectangle Grid.Row="1"
-                                                                      Height="1"
-                                                                      Fill="#363636"
-                                                                      Margin="0,4,0,0"
-                                                                      Visibility="{x:Bind IsLast, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </Border>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-                    </Grid>
+                    <TextBlock x:Name="InitialNoResultsText"
+                               Text="No matches found"
+                               FontSize="13"
+                               Foreground="{StaticResource TextSecondary}"
+                               HorizontalAlignment="Center"
+                               Margin="0,100,0,0"/>
                 </Grid>
             </Grid>
         </Grid>
 
         <Grid Grid.Row="1" Padding="10">
-            <Button x:Name="VaultSelectorButton"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Left"
-                    Background="Transparent"
-                    BorderThickness="1"
-                    BorderBrush="{StaticResource Separator}"
-                    CornerRadius="6"
-                    Padding="12,10"
-                    Click="OnVaultSelectorClicked">
-                <Button.Resources>
-                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2A2A2A"/>
-                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#333333"/>
-                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#404040"/>
-                </Button.Resources>
-                <Grid ColumnDefinitions="Auto, *, Auto">
-                    <FontIcon Grid.Column="0"
-                              Glyph="&#xE8B7;"
-                              FontSize="14"
-                              Foreground="{StaticResource Primary}"
-                              Margin="0,0,10,0"/>
-                    <TextBlock Grid.Column="1"
-                               x:Name="CurrentVaultName"
-                               Text="No vault selected"
-                               FontSize="13"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource TextPrimary}"
-                               VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis"/>
-                    <FontIcon Grid.Column="2"
-                              x:Name="VaultDropdownIcon"
-                              Glyph="&#xE70D;"
-                              FontSize="10"
-                              Foreground="{StaticResource TextSecondary}"
-                              Margin="8,0,0,0"/>
-                </Grid>
-                <Button.Flyout>
-                    <Flyout x:Name="VaultFlyout"
-                            Placement="Top"
-                            Opening="OnVaultFlyoutOpening"
-                            Closing="OnVaultFlyoutClosing">
-                        <Flyout.FlyoutPresenterStyle>
-                            <Style TargetType="FlyoutPresenter">
-                                <Setter Property="Background" Value="#262626"/>
-                                <Setter Property="BorderBrush" Value="#404040"/>
-                                <Setter Property="BorderThickness" Value="1"/>
-                                <Setter Property="CornerRadius" Value="8"/>
-                                <Setter Property="Padding" Value="8"/>
-                            </Style>
-                        </Flyout.FlyoutPresenterStyle>
-                        <StackPanel Width="220" Spacing="0">
-                            <TextBlock Text="VAULTS"
-                                       FontSize="11"
-                                       FontWeight="SemiBold"
-                                       Foreground="#888888"
-                                       Margin="4,0,0,8"/>
-
-                            <ListView x:Name="VaultsList"
-                                      SelectionMode="Single"
-                                      SelectionChanged="OnVaultSelected"
-                                      MaxHeight="200"
-                                      Background="Transparent">
-                                <ListView.Resources>
-                                    <SolidColorBrush x:Key="ListViewItemBackgroundPointerOver" Color="Transparent"/>
-                                    <SolidColorBrush x:Key="ListViewItemBackgroundSelected" Color="Transparent"/>
-                                    <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver" Color="Transparent"/>
-                                    <SolidColorBrush x:Key="ListViewItemBackgroundPressed" Color="Transparent"/>
-                                </ListView.Resources>
-                                <ListView.ItemContainerStyle>
-                                    <Style TargetType="ListViewItem">
-                                        <Setter Property="Padding" Value="0"/>
-                                        <Setter Property="Margin" Value="0"/>
-                                        <Setter Property="MinHeight" Value="0"/>
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                    </Style>
-                                </ListView.ItemContainerStyle>
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:VaultInfo">
-                                        <Button Background="Transparent"
-                                                BorderThickness="0"
-                                                Padding="0"
-                                                HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Stretch"
-                                                CornerRadius="6"
-                                                Tag="{x:Bind}"
-                                                Click="OnVaultItemClicked">
-                                            <Button.Resources>
-                                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#343434"/>
-                                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3A3A3A"/>
-                                            </Button.Resources>
-                                            <Grid Padding="10,8" ColumnDefinitions="Auto, *">
-                                                <FontIcon Grid.Column="0"
-                                                          Glyph="&#xE8B7;"
-                                                          FontSize="12"
-                                                          Foreground="#888888"
-                                                          Margin="0,0,10,0"
-                                                          VerticalAlignment="Center"/>
-                                                <StackPanel Grid.Column="1" Spacing="2">
-                                                    <TextBlock Text="{x:Bind Name}"
-                                                               FontSize="13"
-                                                               Foreground="#DADADA"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Text="{x:Bind Path}"
-                                                               FontSize="10"
-                                                               Foreground="#888888"
-                                                               TextTrimming="CharacterEllipsis"/>
-                                                </StackPanel>
-                                            </Grid>
-                                        </Button>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
-
-                            <Rectangle Height="1"
-                                       Fill="#404040"
-                                       Margin="0,10,0,8"/>
-
-                            <Button Content="Manage Vaults"
-                                    Click="OnManageVaultsClicked"
-                                    HorizontalAlignment="Stretch"
-                                    Background="Transparent"
-                                    Foreground="#DADADA"
-                                    BorderThickness="0"
-                                    CornerRadius="6"
-                                    Padding="10,8"
-                                    HorizontalContentAlignment="Left">
-                                <Button.Resources>
-                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#343434"/>
-                                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#3A3A3A"/>
-                                </Button.Resources>
-                            </Button>
-                        </StackPanel>
-                    </Flyout>
-                </Button.Flyout>
-            </Button>
+            <controls:VaultSelector x:Name="VaultSelectorControl"
+                                   VaultSelected="OnVaultItemSelected"
+                                   ManageVaultsRequested="OnManageVaultsRequested"/>
         </Grid>
     </Grid>
 </UserControl>

@@ -87,7 +87,7 @@
                                FontSize="13"
                                Foreground="{StaticResource TextSecondary}"
                                HorizontalAlignment="Center"
-                               Margin="0,40,0,0"/>
+                               Margin="0,100,0,0"/>
                 </StackPanel>
 
                 <Grid x:Name="ResultsContainer" Visibility="Collapsed">

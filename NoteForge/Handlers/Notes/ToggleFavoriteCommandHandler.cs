@@ -4,7 +4,7 @@ using Mediator;
 using NoteForge.Models;
 using NoteForge.Services;
 
-namespace NoteForge.Handlers;
+namespace NoteForge.Handlers.Notes;
 
 public sealed class ToggleFavoriteCommandHandler(SectionService sectionService) : IRequestHandler<ToggleFavoriteCommandRequest, bool>
 {

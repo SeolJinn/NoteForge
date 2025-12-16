@@ -5,7 +5,7 @@ using Mediator;
 using NoteForge.Models;
 using NoteForge.Services;
 
-namespace NoteForge.Handlers;
+namespace NoteForge.Handlers.AI;
 
 public class SummarizeNoteCommandHandler(OllamaService ollamaService) : IRequestHandler<SummarizeNoteCommandRequest, IAsyncEnumerable<string>>
 {

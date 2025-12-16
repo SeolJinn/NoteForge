@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UI.Dispatching;
 using NoteForge.Models;
 
-namespace NoteForge.Handlers;
+namespace NoteForge.Handlers.AI;
 
 public sealed class GenerateInlineAiSummaryCommandHandler(
     IMediator mediator,

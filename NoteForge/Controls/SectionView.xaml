@@ -11,8 +11,6 @@
 
     <UserControl.Resources>
         <converters:SidebarBackgroundColorConverter x:Key="SidebarBackgroundColorConverter"/>
-        <converters:BoolToChevronConverter x:Key="BoolToChevronConverter"/>
-        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
     </UserControl.Resources>
 
     <Grid Margin="0,4,0,0"

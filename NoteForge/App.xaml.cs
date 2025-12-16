@@ -44,9 +44,12 @@ public partial class App : Application
         services.AddSingleton<ITabManager, TabManager>();
         services.AddSingleton<IMarkdownPreviewService, MarkdownPreviewService>();
         services.AddSingleton<IDialogService, DialogService>();
+        services.AddSingleton<IFolderDialogService, FolderDialogService>();
         services.AddSingleton<OllamaService>();
         services.AddSingleton<SectionService>();
         services.AddSingleton<FolderService>();
+        services.AddSingleton<FolderTreeService>();
+        services.AddSingleton<SidebarCoordinator>();
         services.AddSingleton<ISearchService, SearchService>();
 
         // Register Mediator

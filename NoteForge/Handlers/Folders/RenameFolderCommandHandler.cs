@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Mediator;
 using NoteForge.Services;
 
-namespace NoteForge.Handlers;
+namespace NoteForge.Handlers.Folders;
 
 public class RenameFolderCommandHandler(FolderService folderService)
     : IRequestHandler<RenameFolderCommandRequest, bool>

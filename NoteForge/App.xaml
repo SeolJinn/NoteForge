@@ -2,9 +2,14 @@
     x:Class="NoteForge.App"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:NoteForge">
+    xmlns:local="using:NoteForge"
+    xmlns:converters="using:NoteForge.Converters">
     <Application.Resources>
         <ResourceDictionary>
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+            <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+            <converters:BoolToChevronConverter x:Key="BoolToChevronConverter"/>
+            <converters:CollectionCountToVisibilityConverter x:Key="CollectionCountToVisibilityConverter"/>
             <!-- Color Palette -->
             <SolidColorBrush x:Key="AppBackground" Color="#1E1E1E"/>
             <SolidColorBrush x:Key="TopBar" Color="#363636"/>

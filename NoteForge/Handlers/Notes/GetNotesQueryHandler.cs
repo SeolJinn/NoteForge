@@ -7,7 +7,7 @@ using Mediator;
 using NoteForge.Interfaces;
 using NoteForge.Models;
 
-namespace NoteForge.Handlers;
+namespace NoteForge.Handlers.Notes;
 
 public class GetNotesQueryHandler(INoteService noteService) : IRequestHandler<GetNotesQueryRequest, IEnumerable<Note>>
 {

@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using NoteForge.Models;
+using NoteForge.Services;
+using NoteForge.Services.Search;
 
 namespace NoteForge.Controls;
 
@@ -20,218 +22,111 @@ public sealed partial class WorkspaceSidebar : UserControl
     public event EventHandler<(Note Note, int LineNumber)>? MatchingLineSelected;
     public event EventHandler<VaultInfo>? VaultSelected;
     public event EventHandler? ManageVaultsRequested;
-    public event EventHandler<Note>? ToggleFavoriteRequested;
-    public event EventHandler<Folder>? CreateFolderRequested;
+    public event EventHandler<Folder?>? CreateFolderRequested;
     public event EventHandler<Folder>? RenameFolderRequested;
     public event EventHandler<Folder>? DeleteFolderRequested;
     public event EventHandler<(Note Note, Folder TargetFolder)>? NoteMovedToFolder;
+    public event EventHandler<Note>? ToggleFavoriteRequested;
 
-    private readonly List<FolderView> _folderViews = [];
+    private readonly FolderTreeService _folderTreeService;
+    private readonly AdvancedSearchStrategy _searchStrategy;
+    private Folder? _rootFolder;
     private SectionView? _favoritesView;
     private List<Note> _allNotes = [];
     private SidebarViewMode _currentMode = SidebarViewMode.Folder;
-    private Folder? _rootFolder;
 
     public WorkspaceSidebar()
     {
         InitializeComponent();
+        _folderTreeService = App.Services.GetRequiredService<FolderTreeService>();
+        _searchStrategy = new AdvancedSearchStrategy();
     }
 
     public void LoadFolders(Folder rootFolder, NoteSection? favoritesSection)
     {
-        FoldersContainer.Children.Clear();
-        _folderViews.Clear();
-        _favoritesView = null;
         _rootFolder = rootFolder;
+        FoldersContainer.Children.Clear();
 
-        if (favoritesSection is not null && favoritesSection.IsVisible)
+        if (favoritesSection is not null && favoritesSection.Notes.Count > 0)
         {
             _favoritesView = new SectionView(favoritesSection);
-            _favoritesView.NoteSelected += OnFolderNoteSelected;
-            _favoritesView.ToggleFavoriteRequested += OnFolderToggleFavorite;
+            _favoritesView.NoteSelected += (s, note) => NoteSelected?.Invoke(this, note);
+            _favoritesView.ToggleFavoriteRequested += (s, note) => ToggleFavoriteRequested?.Invoke(this, note);
             FoldersContainer.Children.Add(_favoritesView);
         }
 
-        foreach (var subfolder in rootFolder.SubFolders)
+        foreach (var folder in rootFolder.SubFolders)
         {
-            var folderView = CreateFolderView(subfolder);
-            _folderViews.Add(folderView);
+            var folderView = CreateFolderView(folder);
             FoldersContainer.Children.Add(folderView);
         }
 
         foreach (var note in rootFolder.Notes)
         {
-            var noteItem = CreateNoteItem(note);
+            var noteItem = CreateRootNoteItem(note);
             FoldersContainer.Children.Add(noteItem);
         }
     }
 
-    private Border CreateNoteItem(Note note)
+    private FolderView CreateFolderView(Folder folder)
+    {
+        var folderView = new FolderView(folder, _rootFolder!);
+        folderView.NoteSelected += (s, note) => NoteSelected?.Invoke(this, note);
+        folderView.CreateSubfolderRequested += (s, f) => CreateFolderRequested?.Invoke(this, f);
+        folderView.RenameFolderRequested += (s, f) => RenameFolderRequested?.Invoke(this, f);
+        folderView.DeleteFolderRequested += (s, f) => DeleteFolderRequested?.Invoke(this, f);
+        folderView.NoteMovedToFolder += (s, data) => NoteMovedToFolder?.Invoke(this, data);
+        folderView.ToggleFavoriteRequested += (s, note) => ToggleFavoriteRequested?.Invoke(this, note);
+        return folderView;
+    }
+
+    private Border CreateRootNoteItem(Note note)
     {
         var border = new Border
         {
-            CornerRadius = new Microsoft.UI.Xaml.CornerRadius(8),
-            Margin = new Thickness(10, 2, 10, 2),
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            CornerRadius = new CornerRadius(8),
             Padding = new Thickness(15, 10, 15, 10),
-            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                note.IsSelected
-                    ? Windows.UI.Color.FromArgb(255, 52, 52, 52)
-                    : Microsoft.UI.Colors.Transparent),
-            Tag = note,
-            CanDrag = true
+            Margin = new Thickness(10, 2, 10, 2),
+            Tag = note
         };
+
+        border.Tapped += (s, e) => NoteSelected?.Invoke(this, note);
+        border.CanDrag = true;
+        border.DragStarting += OnRootNoteDragStarting;
 
         var textBlock = new TextBlock
         {
             Text = note.Filename,
             FontSize = 14,
-            Foreground = (Microsoft.UI.Xaml.Media.SolidColorBrush)Application.Current.Resources["TextPrimary"],
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextPrimary"],
             TextTrimming = TextTrimming.CharacterEllipsis
         };
 
-        border.Child = textBlock;
-        border.Tapped += (s, e) => OnFolderNoteSelected(s, note);
-        border.DragStarting += OnRootNoteDragStarting;
+        var menuFlyout = new MenuFlyout();
+        menuFlyout.Items.Add(CreateFlyoutItem("Toggle favorite", (s, e) 
+            => ToggleFavoriteRequested?.Invoke(this, note)));
 
-        var menuFlyout = new MenuFlyout
-        {
-            Placement = FlyoutPlacementMode.RightEdgeAlignedTop
-        };
-
-        MenuFlyoutItem menuItem = new()
-        {
-            Text = "Add to favorites",
-            Tag = note,
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 218, 218, 218)),
-            Icon = new FontIcon { Glyph = "\uE734", FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe MDL2 Assets") }
-        };
-        menuItem.Click += (s, e) => OnFolderToggleFavorite(s, note);
-
-        menuFlyout.Items.Add(menuItem);
         border.ContextFlyout = menuFlyout;
+        border.Child = textBlock;
 
         return border;
     }
 
-    private FolderView CreateFolderView(Folder folder)
+    private MenuFlyoutItem CreateFlyoutItem(string text, RoutedEventHandler handler)
     {
-        var folderView = new FolderView(folder, _rootFolder);
-        folderView.NoteSelected += OnFolderNoteSelected;
-        folderView.CreateSubfolderRequested += OnCreateSubfolderRequested;
-        folderView.RenameFolderRequested += OnRenameFolderRequested;
-        folderView.DeleteFolderRequested += OnDeleteFolderRequested;
-        folderView.NoteMovedToFolder += OnNoteMovedToFolder;
-        folderView.ToggleFavoriteRequested += OnFolderToggleFavorite;
-        return folderView;
-    }
-
-    private void OnFolderNoteSelected(object? sender, Note note)
-    {
-        NoteSelected?.Invoke(this, note);
-    }
-
-    private void OnFolderToggleFavorite(object? sender, Note note)
-    {
-        ToggleFavoriteRequested?.Invoke(this, note);
-    }
-
-    private void OnCreateSubfolderRequested(object? sender, Folder folder)
-    {
-        CreateFolderRequested?.Invoke(this, folder);
-    }
-
-    private void OnRenameFolderRequested(object? sender, Folder folder)
-    {
-        RenameFolderRequested?.Invoke(this, folder);
-    }
-
-    private void OnDeleteFolderRequested(object? sender, Folder folder)
-    {
-        DeleteFolderRequested?.Invoke(this, folder);
-    }
-
-    private void OnNoteMovedToFolder(object? sender, (Note Note, Folder TargetFolder) e)
-    {
-        NoteMovedToFolder?.Invoke(this, e);
-    }
-
-    private void OnCreateFolderClicked(object sender, RoutedEventArgs e)
-    {
-        CreateFolderRequested?.Invoke(this, null!);
-    }
-
-    public void SetVaultName(string name)
-    {
-        CurrentVaultName.Text = name;
-    }
-
-    public void SetSelectedNote(Note? note)
-    {
-        _favoritesView?.SetSelectedNote(note);
-
-        foreach (var folderView in _folderViews)
+        var item = new MenuFlyoutItem
         {
-            folderView.SetSelectedNote(note);
-        }
-
-        foreach (UIElement child in FoldersContainer.Children)
-        {
-            if (child is Border border && border.Tag is Note borderNote)
-            {
-                var isSelected = note is not null &&
-                                !string.IsNullOrEmpty(borderNote.FilePath) &&
-                                !string.IsNullOrEmpty(note.FilePath) &&
-                                string.Equals(borderNote.FilePath, note.FilePath, StringComparison.OrdinalIgnoreCase);
-
-                borderNote.IsSelected = isSelected;
-
-                border.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    isSelected
-                        ? Windows.UI.Color.FromArgb(255, 52, 52, 52)
-                        : Microsoft.UI.Colors.Transparent);
-            }
-        }
+            Text = text,
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextPrimary"]
+        };
+        item.Click += handler;
+        return item;
     }
 
-    public void SetVaultsSource(object itemsSource)
+    public void LoadNotesForSearch(List<Note> notes)
     {
-        VaultsList.ItemsSource = itemsSource;
-    }
-
-    private void OnVaultSelectorClicked(object sender, RoutedEventArgs e)
-    {
-    }
-
-    private void OnVaultFlyoutOpening(object sender, object e)
-    {
-        VaultDropdownIcon.Glyph = "\uE70E";
-        var vaults = App.NoteService.GetRecentVaults();
-        VaultsList.ItemsSource = vaults;
-    }
-
-    private void OnVaultFlyoutClosing(FlyoutBase sender, FlyoutBaseClosingEventArgs args)
-    {
-        VaultDropdownIcon.Glyph = "\uE70D";
-    }
-
-    private void OnVaultSelected(object sender, SelectionChangedEventArgs e)
-    {
-        VaultsList.SelectedItem = null;
-    }
-
-    private void OnVaultItemClicked(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button button && button.Tag is VaultInfo vaultInfo)
-        {
-            VaultFlyout.Hide();
-            VaultSelected?.Invoke(this, vaultInfo);
-        }
-    }
-
-    private void OnManageVaultsClicked(object sender, RoutedEventArgs e)
-    {
-        VaultFlyout.Hide();
-        ManageVaultsRequested?.Invoke(this, EventArgs.Empty);
+        _allNotes = notes;
     }
 
     public void SetViewMode(SidebarViewMode mode)
@@ -247,14 +142,31 @@ public sealed partial class WorkspaceSidebar : UserControl
         {
             FoldersContainer.Visibility = Visibility.Collapsed;
             SearchView.Visibility = Visibility.Visible;
-            SearchTextBox.Text = string.Empty;
-            ShowSearchOptions();
         }
     }
 
-    public void LoadNotesForSearch(IEnumerable<Note> notes)
+    public void SetVaultName(string name)
     {
-        _allNotes = [.. notes];
+        VaultSelectorControl.SetVaultName(name);
+    }
+
+    public void SetSelectedNote(Note? note)
+    {
+        _favoritesView?.SetSelectedNote(note);
+
+        foreach (var child in FoldersContainer.Children)
+        {
+            if (child is FolderView folderView)
+            {
+                folderView.SetSelectedNote(note);
+            }
+            else if (child is Border border && border.Tag is Note rootNote)
+            {
+                border.Background = note is not null && rootNote.FilePath == note.FilePath
+                    ? new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 52, 52, 52))
+                    : new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            }
+        }
     }
 
     private void OnSearchTextBoxLoaded(object sender, RoutedEventArgs e)
@@ -264,45 +176,10 @@ public sealed partial class WorkspaceSidebar : UserControl
 
     private void OnSearchTextBoxGotFocus(object sender, RoutedEventArgs e)
     {
-        var query = SearchTextBox.Text?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            ShowSearchOptions();
-        }
-    }
-
-    private void OnPathFilterClicked(object sender, RoutedEventArgs e)
-    {
-        SearchTextBox.Text = "path:";
-        SearchTextBox.Focus(FocusState.Programmatic);
-        SearchTextBox.SelectionStart = SearchTextBox.Text.Length;
-    }
-
-    private void OnFileFilterClicked(object sender, RoutedEventArgs e)
-    {
-        SearchTextBox.Text = "file:";
-        SearchTextBox.Focus(FocusState.Programmatic);
-        SearchTextBox.SelectionStart = SearchTextBox.Text.Length;
-    }
-
-    private void ShowSearchOptions()
-    {
-        SearchOptionsMenu.Visibility = Visibility.Visible;
-        ResultsContainer.Visibility = Visibility.Collapsed;
-    }
-
-    private void ShowResults()
-    {
-        SearchOptionsMenu.Visibility = Visibility.Collapsed;
-        ResultsContainer.Visibility = Visibility.Visible;
+        InitialNoResultsText.Visibility = Visibility.Collapsed;
     }
 
     private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
-    {
-        UpdateSearchResults();
-    }
-
-    private void UpdateSearchResults()
     {
         var query = SearchTextBox.Text?.Trim() ?? string.Empty;
 
@@ -313,204 +190,78 @@ public sealed partial class WorkspaceSidebar : UserControl
         }
 
         ShowResults();
-
-        var results = ParseAndSearch(query);
-        ResultsListView.ItemsSource = results;
-
-        if (results.Count is 0)
-        {
-            NoResultsText.Visibility = Visibility.Visible;
-            ResultsListView.Visibility = Visibility.Collapsed;
-        }
-        else
-        {
-            NoResultsText.Visibility = Visibility.Collapsed;
-            ResultsListView.Visibility = Visibility.Visible;
-        }
+        var results = _searchStrategy.Search(_allNotes, query).First();
+        SearchResultsControl.SetResults(results);
     }
 
-    private List<SearchResult> ParseAndSearch(string query)
+    private void ShowSearchOptions()
     {
-        var filters = new Dictionary<string, string>();
-        var remainingQuery = query;
-
-        var filterPrefixes = new[] { "file:", "path:" };
-
-        foreach (var prefix in filterPrefixes)
-        {
-            var index = remainingQuery.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
-            if (index >= 0)
-            {
-                var start = index + prefix.Length;
-                var end = remainingQuery.IndexOf(' ', start);
-                var value = end >= 0
-                    ? remainingQuery[start..end]
-                    : remainingQuery[start..];
-
-                filters[prefix.TrimEnd(':')] = value.Trim();
-                remainingQuery = remainingQuery.Remove(index, (end >= 0 ? end : remainingQuery.Length) - index);
-            }
-        }
-
-        remainingQuery = remainingQuery.Trim();
-
-        var searchResults = new List<SearchResult>();
-
-        foreach (var note in _allNotes)
-        {
-            var matchesFile = !filters.TryGetValue("file", out var fileFilter) ||
-                             note.Filename.Contains(fileFilter, StringComparison.OrdinalIgnoreCase);
-
-            var matchesPath = !filters.TryGetValue("path", out var pathFilter) ||
-                             note.FilePath.Contains(pathFilter, StringComparison.OrdinalIgnoreCase);
-
-            if (!matchesFile || !matchesPath)
-                continue;
-
-            if (string.IsNullOrWhiteSpace(remainingQuery))
-            {
-                searchResults.Add(new SearchResult(note, remainingQuery) { MatchesInTitle = true });
-                continue;
-            }
-
-            var titleMatches = note.Filename.Contains(remainingQuery, StringComparison.OrdinalIgnoreCase);
-            var contentMatches = new List<MatchingLine>();
-
-            if (!string.IsNullOrEmpty(note.Text))
-            {
-                var lines = note.Text.Split(['\r', '\n'], StringSplitOptions.None);
-
-                for (int i = 0; i < lines.Length; i++)
-                {
-                    if (string.IsNullOrEmpty(lines[i]))
-                        continue;
-
-                    if (lines[i].Contains(remainingQuery, StringComparison.OrdinalIgnoreCase))
-                    {
-                        var trimmedLine = lines[i].Trim();
-                        if (!string.IsNullOrEmpty(trimmedLine))
-                        {
-                            contentMatches.Add(new MatchingLine(trimmedLine, remainingQuery, i + 1));
-                        }
-                    }
-                }
-            }
-
-            if (titleMatches || contentMatches.Count > 0)
-            {
-                if (contentMatches.Count > 0)
-                {
-                    contentMatches[^1].IsLast = true;
-                }
-
-                searchResults.Add(new SearchResult(note, remainingQuery)
-                {
-                    MatchesInTitle = titleMatches,
-                    MatchingLines = contentMatches
-                });
-            }
-        }
-
-        return searchResults;
+        SearchOptions.Visibility = Visibility.Visible;
+        SearchResultsControl.Visibility = Visibility.Collapsed;
+        InitialNoResultsText.Visibility = Visibility.Visible;
     }
 
-    private void OnResultSelected(object sender, SelectionChangedEventArgs e)
+    private void ShowResults()
     {
-        ResultsListView.SelectedItem = null;
+        SearchOptions.Visibility = Visibility.Collapsed;
+        SearchResultsControl.Visibility = Visibility.Visible;
+        InitialNoResultsText.Visibility = Visibility.Collapsed;
     }
 
-    private void OnSearchResultHeaderTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    private void OnPathFilterRequested(object sender, EventArgs e)
     {
-        if (sender is Grid grid && grid.Tag is SearchResult result)
-        {
-            if (result.MatchingLines.Count > 0)
-            {
-                result.IsExpanded = !result.IsExpanded;
-            }
-            else
-            {
-                NoteSelected?.Invoke(this, result.Note);
-            }
-        }
+        SearchTextBox.Text = "path:";
+        SearchTextBox.Focus(FocusState.Programmatic);
+        SearchTextBox.SelectionStart = SearchTextBox.Text.Length;
     }
 
-    private void OnMatchingLineClicked(object sender, RoutedEventArgs e)
+    private void OnFileFilterRequested(object sender, EventArgs e)
     {
-        if (sender is Button button && button.Tag is MatchingLine matchingLine)
-        {
-            var note = FindNoteForMatchingLine(matchingLine);
-            if (note is not null)
-            {
-                MatchingLineSelected?.Invoke(this, (note, matchingLine.LineNumber));
-            }
-        }
+        SearchTextBox.Text = "file:";
+        SearchTextBox.Focus(FocusState.Programmatic);
+        SearchTextBox.SelectionStart = SearchTextBox.Text.Length;
     }
 
-    private Note? FindNoteForMatchingLine(MatchingLine matchingLine)
+    private void OnSearchResultNoteSelected(object sender, Note note)
     {
-        if (ResultsListView.ItemsSource is IEnumerable<SearchResult> results)
-        {
-            foreach (var result in results)
-            {
-                if (result.MatchingLines.Contains(matchingLine))
-                {
-                    return result.Note;
-                }
-            }
-        }
-        return null;
+        NoteSelected?.Invoke(this, note);
+    }
+
+    private void OnSearchResultMatchingLineSelected(object sender, (Note Note, int LineNumber) data)
+    {
+        MatchingLineSelected?.Invoke(this, data);
+    }
+
+    private void OnVaultItemSelected(object sender, VaultInfo vaultInfo)
+    {
+        VaultSelected?.Invoke(this, vaultInfo);
+    }
+
+    private void OnManageVaultsRequested(object sender, EventArgs e)
+    {
+        ManageVaultsRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnCreateFolderClicked(object sender, RoutedEventArgs e)
+    {
+        CreateFolderRequested?.Invoke(this, null);
     }
 
     private void OnRootDragOver(object sender, Microsoft.UI.Xaml.DragEventArgs e)
     {
-        if (e.DataView.Properties.ContainsKey("NoteFilePath"))
-        {
-            e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
-            e.DragUIOverride.Caption = "Move to vault root";
-            e.DragUIOverride.IsCaptionVisible = true;
-            e.DragUIOverride.IsGlyphVisible = true;
-        }
-        else
-        {
-            e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.None;
-        }
+        e.AcceptedOperation = Windows.ApplicationModel.DataTransfer.DataPackageOperation.Move;
     }
 
     private void OnRootDrop(object sender, Microsoft.UI.Xaml.DragEventArgs e)
     {
-        if (e.DataView.Properties.TryGetValue("NoteFilePath", out var noteFilePathObj) && noteFilePathObj is string noteFilePath)
+        if (e.DataView.Properties.TryGetValue("NoteFilePath", out var value) && value is string noteFilePath)
         {
-            if (_rootFolder is null)
-                return;
-
-            Note? note = FindNoteInFolderTree(_rootFolder, noteFilePath)
-                         ?? _allNotes.FirstOrDefault(n => n.FilePath == noteFilePath);
-
+            var note = _folderTreeService.FindNoteInTree(_rootFolder!, noteFilePath);
             if (note is not null)
             {
-                NoteMovedToFolder?.Invoke(this, (Note: note, TargetFolder: _rootFolder));
+                NoteMovedToFolder?.Invoke(this, (Note: note, TargetFolder: _rootFolder!));
             }
         }
-    }
-
-    private Note? FindNoteInFolderTree(Folder folder, string noteFilePath)
-    {
-        var note = folder.Notes.FirstOrDefault(n => n.FilePath == noteFilePath);
-        if (note is not null)
-        {
-            return note;
-        }
-
-        foreach (var subfolder in folder.SubFolders)
-        {
-            note = FindNoteInFolderTree(subfolder, noteFilePath);
-            if (note is not null)
-            {
-                return note;
-            }
-        }
-
-        return null;
     }
 
     private void OnRootNoteDragStarting(UIElement sender, Microsoft.UI.Xaml.DragStartingEventArgs args)
@@ -524,40 +275,14 @@ public sealed partial class WorkspaceSidebar : UserControl
 
     public Dictionary<string, bool> GetFolderExpandedStates()
     {
-        var states = new Dictionary<string, bool>();
-        if (_rootFolder is not null)
-        {
-            CollectExpandedStates(_rootFolder, states);
-        }
-        return states;
-    }
-
-    private void CollectExpandedStates(Folder folder, Dictionary<string, bool> states)
-    {
-        states[folder.DirectoryPath] = folder.IsExpanded;
-        foreach (var subfolder in folder.SubFolders)
-        {
-            CollectExpandedStates(subfolder, states);
-        }
+        return _rootFolder is not null ? _folderTreeService.GetExpandedStates(_rootFolder) : [];
     }
 
     public void RestoreFolderExpandedStates(Dictionary<string, bool> states)
     {
         if (_rootFolder is not null)
         {
-            ApplyExpandedStates(_rootFolder, states);
-        }
-    }
-
-    private void ApplyExpandedStates(Folder folder, Dictionary<string, bool> states)
-    {
-        if (states.TryGetValue(folder.DirectoryPath, out var isExpanded))
-        {
-            folder.IsExpanded = isExpanded;
-        }
-        foreach (var subfolder in folder.SubFolders)
-        {
-            ApplyExpandedStates(subfolder, states);
+            _folderTreeService.RestoreExpandedStates(_rootFolder, states);
         }
     }
 }

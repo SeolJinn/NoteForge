@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Mediator;
 using NoteForge.Models;
 
-namespace NoteForge.Handlers;
+namespace NoteForge.Handlers.Notes;
 
 public class RenameNoteCommandHandler : IRequestHandler<RenameNoteCommandRequest, bool>
 {
