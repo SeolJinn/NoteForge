@@ -61,6 +61,16 @@
                             Click="OnSearchViewClicked">
                         <FontIcon Glyph="&#xE721;" FontSize="16"/>
                     </Button>
+                    <Button x:Name="GraphViewButton"
+                            FontSize="16"
+                            Foreground="{StaticResource TextPrimary}"
+                            Background="Transparent"
+                            Width="40"
+                            Height="40"
+                            VerticalAlignment="Center"
+                            Click="OnGraphViewClicked">
+                        <FontIcon Glyph="&#xE968;" FontSize="16"/>
+                    </Button>
                 </StackPanel>
             </Grid>
 
@@ -159,6 +169,11 @@
                                    GenerateSummaryRequested="OnGenerateSummaryClicked"
                                    CloseSummaryRequested="OnCloseSummaryClicked"
                                    TogglePreviewRequested="OnTogglePreviewClicked"/>
+
+                <!-- Graph View -->
+                <controls:GraphViewControl x:Name="GraphView"
+                                          Visibility="Collapsed"
+                                          NodeClicked="OnGraphNodeClicked"/>
             </Grid>
         </Grid>
     </Grid>

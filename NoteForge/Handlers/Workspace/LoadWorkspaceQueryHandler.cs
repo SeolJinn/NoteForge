@@ -1,12 +1,16 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using Microsoft.Extensions.Logging;
 using NoteForge.Handlers.Notes;
 using NoteForge.Interfaces;
 using NoteForge.Models;
 using NoteForge.Services;
+using NoteForge.Services.Embeddings;
 
 namespace NoteForge.Handlers.Workspace;
 
@@ -15,7 +19,9 @@ public sealed class LoadWorkspaceQueryHandler(
     ITabManager tabManager,
     SectionService sectionService,
     FolderService folderService,
-    IMediator mediator) : IRequestHandler<LoadWorkspaceQueryRequest, LoadWorkspaceQueryResponse>
+    OllamaService ollamaService,
+    IMediator mediator,
+    ILogger<LoadWorkspaceQueryHandler> logger) : IRequestHandler<LoadWorkspaceQueryRequest, LoadWorkspaceQueryResponse>
 {
     public async ValueTask<LoadWorkspaceQueryResponse> Handle(LoadWorkspaceQueryRequest request, CancellationToken cancellationToken)
     {
@@ -29,6 +35,30 @@ public sealed class LoadWorkspaceQueryHandler(
                 FavoritesSection: null,
                 InitialNoteFilePath: null);
         }
+
+        var appDataDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "NoteForge",
+            "Embeddings");
+
+        if (!Directory.Exists(appDataDir))
+        {
+            Directory.CreateDirectory(appDataDir);
+        }
+
+        var vaultPathHash = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(
+                System.Text.Encoding.UTF8.GetBytes(noteService.CurrentNotebookPath)))[..16];
+
+        var dbPath = Path.Combine(appDataDir, $"{vaultPathHash}.db");
+        App.EmbeddingRepository?.Dispose();
+        App.EmbeddingRepository = new EmbeddingRepository(dbPath);
+        await App.EmbeddingRepository.InitializeDatabaseAsync();
+
+        App.EmbeddingService = new EmbeddingService(
+            ollamaService,
+            App.EmbeddingRepository,
+            App.LoggerFactory.CreateLogger<EmbeddingService>());
 
         var notes = (await mediator.Send(new GetNotesQueryRequest(), cancellationToken)).ToList();
 

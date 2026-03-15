@@ -1,10 +1,12 @@
 ﻿using System;
+using System.IO;
 using Mediator;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using NoteForge.Interfaces;
 using NoteForge.Services;
+using NoteForge.Services.Embeddings;
 using NoteForge.Services.Search;
 
 namespace NoteForge;
@@ -22,6 +24,8 @@ public partial class App : Application
     public static SectionService SectionService => Services.GetRequiredService<SectionService>();
     public static FolderService FolderService => Services.GetRequiredService<FolderService>();
     public static ISearchService SearchService => Services.GetRequiredService<ISearchService>();
+    public static EmbeddingRepository? EmbeddingRepository { get; set; }
+    public static EmbeddingService? EmbeddingService { get; set; }
 
     public App()
     {
@@ -51,6 +55,11 @@ public partial class App : Application
         services.AddSingleton<FolderTreeService>();
         services.AddSingleton<SidebarCoordinator>();
         services.AddSingleton<ISearchService, SearchService>();
+
+        // Register embedding services
+        services.AddSingleton<SemanticSearchStrategy>();
+        services.AddSingleton<EmbeddingDebugHelper>();
+        services.AddSingleton<TfidfCalculator>();
 
         // Register Mediator
         services.AddMediator();

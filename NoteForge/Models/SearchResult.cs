@@ -12,6 +12,7 @@ public partial class SearchResult(Note note, string searchQuery = "") : INotifyP
     public bool MatchesInTitle { get; set; }
     public List<MatchingLine> MatchingLines { get; set; } = [];
     public string SearchQuery { get; set; } = searchQuery;
+    public float RelevanceScore { get; set; }
 
     public bool IsExpanded
     {
@@ -30,6 +31,8 @@ public partial class SearchResult(Note note, string searchQuery = "") : INotifyP
     public int MatchCount => MatchingLines.Count;
 
     public bool ShouldShowMatchingLines => IsExpanded && MatchingLines.Count > 0;
+
+    public string RelevancePercentage => $"{(int)(RelevanceScore * 100)}%";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

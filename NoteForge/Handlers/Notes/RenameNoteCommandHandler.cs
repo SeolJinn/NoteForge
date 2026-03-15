@@ -3,7 +3,9 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using Microsoft.Extensions.DependencyInjection;
 using NoteForge.Models;
+using NoteForge.Services.Search;
 
 namespace NoteForge.Handlers.Notes;
 
@@ -49,6 +51,24 @@ public class RenameNoteCommandHandler : IRequestHandler<RenameNoteCommandRequest
 
             note.FilePath = newPath;
             note.Filename = Path.GetFileNameWithoutExtension(newPath);
+
+            App.Services.GetRequiredService<SemanticSearchStrategy>().InvalidateIndex();
+
+            if (App.EmbeddingRepository is not null && App.EmbeddingService is not null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await App.EmbeddingRepository.DeleteEmbeddingAsync(oldPath);
+                        await App.EmbeddingService.GenerateEmbeddingForNoteAsync(note, cancellationToken);
+                        App.Services.GetRequiredService<SemanticSearchStrategy>().InvalidateEmbeddingsCache();
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }, cancellationToken);
+            }
 
             return true;
         }

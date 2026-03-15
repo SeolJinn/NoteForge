@@ -7,6 +7,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
+using System.Threading.Tasks;
+
 using NoteForge.Configuration;
 
 namespace NoteForge.Services;
@@ -71,6 +73,35 @@ public class OllamaService
         }
     }
 
+    public async Task<float[]?> GenerateEmbeddingAsync(
+        string text,
+        CancellationToken cancellationToken = default)
+    {
+        var requestBody = new
+        {
+            model = OllamaSettings.EmbeddingModel,
+            prompt = text
+        };
+
+        var json = JsonSerializer.Serialize(requestBody);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        try
+        {
+            var response = await _httpClient.PostAsync("/api/embeddings", content, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+            var embeddingResponse = JsonSerializer.Deserialize<OllamaEmbeddingResponse>(responseJson);
+
+            return embeddingResponse?.Embedding;
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
     private class OllamaStreamResponse
     {
         [JsonPropertyName("response")]
@@ -78,6 +109,12 @@ public class OllamaService
 
         [JsonPropertyName("done")]
         public bool Done { get; set; }
+    }
+
+    private class OllamaEmbeddingResponse
+    {
+        [JsonPropertyName("embedding")]
+        public float[]? Embedding { get; set; }
     }
 }
 

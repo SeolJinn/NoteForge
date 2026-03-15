@@ -72,21 +72,17 @@
                 </TextBox>
 
                 <Grid Grid.Row="1">
-                    <controls:SearchOptionsPanel x:Name="SearchOptions"
-                                                PathFilterRequested="OnPathFilterRequested"
-                                                FileFilterRequested="OnFileFilterRequested"/>
+                    <TextBlock x:Name="SearchHintText"
+                               Text="Start typing to search"
+                               FontSize="13"
+                               Foreground="{StaticResource TextSecondary}"
+                               HorizontalAlignment="Center"
+                               Margin="0,100,0,0"/>
 
                     <controls:SearchResultsPanel x:Name="SearchResultsControl"
                                                 Visibility="Collapsed"
                                                 NoteSelected="OnSearchResultNoteSelected"
                                                 MatchingLineSelected="OnSearchResultMatchingLineSelected"/>
-
-                    <TextBlock x:Name="InitialNoResultsText"
-                               Text="No matches found"
-                               FontSize="13"
-                               Foreground="{StaticResource TextSecondary}"
-                               HorizontalAlignment="Center"
-                               Margin="0,100,0,0"/>
                 </Grid>
             </Grid>
         </Grid>

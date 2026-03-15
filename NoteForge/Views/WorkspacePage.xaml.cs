@@ -65,6 +65,7 @@ public sealed partial class WorkspacePage : Page
         _saveDebouncer?.Dispose();
         _summaryCts?.Cancel();
         _summaryCts?.Dispose();
+        GraphView.Cleanup();
     }
 
     private async Task LoadNotes()
@@ -121,13 +122,41 @@ public sealed partial class WorkspacePage : Page
     private void OnToggleSidebarClicked(object sender, RoutedEventArgs e) =>
         _sidebarCoordinator.ToggleSidebar(Sidebar, SidebarColumn, TitleBarSidebarColumn, SplitterBorder);
 
-    private void OnFolderViewClicked(object sender, RoutedEventArgs e) =>
+    private void OnFolderViewClicked(object sender, RoutedEventArgs e)
+    {
+        GraphView.Visibility = Visibility.Collapsed;
         _sidebarCoordinator.ShowFolderView(Sidebar, SidebarColumn, TitleBarSidebarColumn, SplitterBorder);
+    }
 
     private async void OnSearchViewClicked(object sender, RoutedEventArgs e)
     {
+        GraphView.Visibility = Visibility.Collapsed;
         var allNotes = (await _mediator.Send(new GetNotesQueryRequest())).ToList();
         _sidebarCoordinator.ShowSearchView(Sidebar, SidebarColumn, TitleBarSidebarColumn, SplitterBorder, allNotes);
+    }
+
+    private async void OnGraphViewClicked(object sender, RoutedEventArgs e)
+    {
+        _sidebarCoordinator.ToggleSidebar(Sidebar, SidebarColumn, TitleBarSidebarColumn, SplitterBorder);
+
+        if (_tabManager.ActiveTab is not null)
+            _tabManager.ActiveTab.IsActive = false;
+
+        EditorView.Visibility = Visibility.Collapsed;
+        NewTabView.Visibility = Visibility.Collapsed;
+        GraphView.Visibility = Visibility.Visible;
+
+        var allNotes = (await _mediator.Send(new GetNotesQueryRequest())).ToList();
+        await GraphView.LoadGraphAsync(allNotes);
+    }
+
+    private void OnGraphNodeClicked(object sender, Note note)
+    {
+        GraphView.Visibility = Visibility.Collapsed;
+
+        _sidebarCoordinator.ShowFolderView(Sidebar, SidebarColumn, TitleBarSidebarColumn, SplitterBorder);
+
+        _tabManager.OpenTab(note);
     }
 
     private void OnNoteSelected(object sender, Note selectedNote)

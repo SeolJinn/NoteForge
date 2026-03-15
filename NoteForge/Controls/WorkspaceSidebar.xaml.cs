@@ -29,7 +29,7 @@ public sealed partial class WorkspaceSidebar : UserControl
     public event EventHandler<Note>? ToggleFavoriteRequested;
 
     private readonly FolderTreeService _folderTreeService;
-    private readonly AdvancedSearchStrategy _searchStrategy;
+    private readonly SemanticSearchStrategy _searchStrategy;
     private Folder? _rootFolder;
     private SectionView? _favoritesView;
     private List<Note> _allNotes = [];
@@ -39,7 +39,7 @@ public sealed partial class WorkspaceSidebar : UserControl
     {
         InitializeComponent();
         _folderTreeService = App.Services.GetRequiredService<FolderTreeService>();
-        _searchStrategy = new AdvancedSearchStrategy();
+        _searchStrategy = App.Services.GetRequiredService<SemanticSearchStrategy>();
     }
 
     public void LoadFolders(Folder rootFolder, NoteSection? favoritesSection)
@@ -127,6 +127,8 @@ public sealed partial class WorkspaceSidebar : UserControl
     public void LoadNotesForSearch(List<Note> notes)
     {
         _allNotes = notes;
+        _searchStrategy.InvalidateIndex();
+        _searchStrategy.InvalidateEmbeddingsCache();
     }
 
     public void SetViewMode(SidebarViewMode mode)
@@ -176,7 +178,6 @@ public sealed partial class WorkspaceSidebar : UserControl
 
     private void OnSearchTextBoxGotFocus(object sender, RoutedEventArgs e)
     {
-        InitialNoResultsText.Visibility = Visibility.Collapsed;
     }
 
     private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
@@ -196,30 +197,14 @@ public sealed partial class WorkspaceSidebar : UserControl
 
     private void ShowSearchOptions()
     {
-        SearchOptions.Visibility = Visibility.Visible;
+        SearchHintText.Visibility = Visibility.Visible;
         SearchResultsControl.Visibility = Visibility.Collapsed;
-        InitialNoResultsText.Visibility = Visibility.Visible;
     }
 
     private void ShowResults()
     {
-        SearchOptions.Visibility = Visibility.Collapsed;
+        SearchHintText.Visibility = Visibility.Collapsed;
         SearchResultsControl.Visibility = Visibility.Visible;
-        InitialNoResultsText.Visibility = Visibility.Collapsed;
-    }
-
-    private void OnPathFilterRequested(object sender, EventArgs e)
-    {
-        SearchTextBox.Text = "path:";
-        SearchTextBox.Focus(FocusState.Programmatic);
-        SearchTextBox.SelectionStart = SearchTextBox.Text.Length;
-    }
-
-    private void OnFileFilterRequested(object sender, EventArgs e)
-    {
-        SearchTextBox.Text = "file:";
-        SearchTextBox.Focus(FocusState.Programmatic);
-        SearchTextBox.SelectionStart = SearchTextBox.Text.Length;
     }
 
     private void OnSearchResultNoteSelected(object sender, Note note)

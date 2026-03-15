@@ -55,6 +55,11 @@
                                                               TextFontSize="13"
                                                               TextForeground="{StaticResource TextPrimary}"
                                                               VerticalAlignment="Center"/>
+                                <TextBlock Text="{x:Bind RelevancePercentage, Mode=OneWay}"
+                                           FontSize="12"
+                                           Foreground="{StaticResource TextSecondary}"
+                                           VerticalAlignment="Center"
+                                           Margin="8,0,0,0"/>
                                 <TextBlock Text="{x:Bind MatchCount, Mode=OneWay}"
                                            FontSize="11"
                                            Foreground="{StaticResource Gray600}"

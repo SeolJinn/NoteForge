@@ -3,8 +3,10 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using Microsoft.Extensions.DependencyInjection;
 using NoteForge.Interfaces;
 using NoteForge.Models;
+using NoteForge.Services.Search;
 
 namespace NoteForge.Handlers.Notes;
 
@@ -35,13 +37,32 @@ public class CreateNoteCommandHandler(INoteService noteService) : IRequestHandle
 
             await File.WriteAllTextAsync(filePath, string.Empty, cancellationToken);
 
-            return new Note
+            var note = new Note
             {
                 Filename = Path.GetFileNameWithoutExtension(filePath),
                 FilePath = filePath,
                 Date = DateTime.Now,
                 Text = string.Empty
             };
+
+            App.Services.GetRequiredService<SemanticSearchStrategy>().InvalidateIndex();
+
+            if (App.EmbeddingService is not null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await App.EmbeddingService.GenerateEmbeddingForNoteAsync(note, cancellationToken);
+                        App.Services.GetRequiredService<SemanticSearchStrategy>().InvalidateEmbeddingsCache();
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }, cancellationToken);
+            }
+
+            return note;
         }
         catch
         {
