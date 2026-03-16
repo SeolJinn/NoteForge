@@ -8,6 +8,8 @@ namespace NoteForge.Services;
 
 public class SidebarCoordinator
 {
+    private const double SidebarWidth = 250;
+
     public void ToggleSidebar(
         WorkspaceSidebar sidebar,
         ColumnDefinition sidebarColumn,
@@ -25,8 +27,8 @@ public class SidebarCoordinator
         {
             sidebar.Visibility = Visibility.Visible;
             splitterBorder.Visibility = Visibility.Visible;
-            sidebarColumn.Width = new GridLength(250);
-            titleBarColumn.Width = new GridLength(250);
+            sidebarColumn.Width = new GridLength(SidebarWidth);
+            titleBarColumn.Width = new GridLength(SidebarWidth);
         }
     }
 
@@ -42,8 +44,8 @@ public class SidebarCoordinator
 
         if (sidebarColumn.ActualWidth is 0)
         {
-            sidebarColumn.Width = new GridLength(250);
-            titleBarColumn.Width = new GridLength(250);
+            sidebarColumn.Width = new GridLength(SidebarWidth);
+            titleBarColumn.Width = new GridLength(SidebarWidth);
         }
     }
 
@@ -61,8 +63,8 @@ public class SidebarCoordinator
 
         if (sidebarColumn.ActualWidth is 0)
         {
-            sidebarColumn.Width = new GridLength(250);
-            titleBarColumn.Width = new GridLength(250);
+            sidebarColumn.Width = new GridLength(SidebarWidth);
+            titleBarColumn.Width = new GridLength(SidebarWidth);
         }
     }
 }

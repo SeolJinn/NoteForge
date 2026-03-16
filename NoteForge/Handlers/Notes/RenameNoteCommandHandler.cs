@@ -3,22 +3,27 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NoteForge.Helpers;
+using NoteForge.Interfaces;
 using NoteForge.Models;
-using NoteForge.Services.Search;
 
 namespace NoteForge.Handlers.Notes;
 
-public class RenameNoteCommandHandler : IRequestHandler<RenameNoteCommandRequest, bool>
+public class RenameNoteCommandHandler(
+    INoteService noteService,
+    IEmbeddingService embeddingService,
+    ISemanticSearchStrategy semanticSearch,
+    ILogger<RenameNoteCommandHandler> logger) : IRequestHandler<RenameNoteCommandRequest, OperationResult>
 {
-    public async ValueTask<bool> Handle(RenameNoteCommandRequest request, CancellationToken cancellationToken)
+    public async ValueTask<OperationResult> Handle(RenameNoteCommandRequest request, CancellationToken cancellationToken)
     {
         var note = request.Note;
         var newName = request.NewName;
 
         if (string.IsNullOrWhiteSpace(newName) || note is null || string.IsNullOrEmpty(note.FilePath))
         {
-            return false;
+            return OperationResult.Fail("Invalid note name.");
         }
 
         if (!newName.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
@@ -29,19 +34,24 @@ public class RenameNoteCommandHandler : IRequestHandler<RenameNoteCommandRequest
         var directory = Path.GetDirectoryName(note.FilePath);
         if (string.IsNullOrEmpty(directory))
         {
-            return false;
+            return OperationResult.Fail("Could not determine note directory.");
         }
 
         var newPath = Path.Combine(directory, newName);
 
+        if (!PathValidator.IsWithinVault(newPath, noteService.CurrentNotebookPath))
+        {
+            return OperationResult.Fail("The name contains invalid path characters.");
+        }
+
         if (string.Equals(note.FilePath, newPath, StringComparison.OrdinalIgnoreCase))
         {
-            return true;
+            return OperationResult.Ok();
         }
 
         if (File.Exists(newPath))
         {
-            return false;
+            return OperationResult.Fail("A note with that name already exists.");
         }
 
         try
@@ -52,34 +62,20 @@ public class RenameNoteCommandHandler : IRequestHandler<RenameNoteCommandRequest
             note.FilePath = newPath;
             note.Filename = Path.GetFileNameWithoutExtension(newPath);
 
-            App.Services.GetRequiredService<SemanticSearchStrategy>().InvalidateIndex();
+            semanticSearch.InvalidateIndex();
+            embeddingService.QueueEmbeddingUpdate(note, oldPathToDelete: oldPath, onComplete: semanticSearch.InvalidateEmbeddingsCache);
 
-            if (App.EmbeddingRepository is not null && App.EmbeddingService is not null)
-            {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await App.EmbeddingRepository.DeleteEmbeddingAsync(oldPath);
-                        await App.EmbeddingService.GenerateEmbeddingForNoteAsync(note, cancellationToken);
-                        App.Services.GetRequiredService<SemanticSearchStrategy>().InvalidateEmbeddingsCache();
-                    }
-                    catch (Exception)
-                    {
-                    }
-                }, cancellationToken);
-            }
-
-            return true;
+            return OperationResult.Ok();
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            logger.LogError(ex, "Failed to rename note from {OldPath} to {NewPath}", note.FilePath, newPath);
+            return OperationResult.Fail("Failed to rename the note. The file may be in use.");
         }
     }
 }
 
-public sealed class RenameNoteCommandRequest(Note note, string newName) : IRequest<bool>
+public sealed class RenameNoteCommandRequest(Note note, string newName) : IRequest<OperationResult>
 {
     public Note Note { get; init; } = note;
     public string NewName { get; init; } = newName;

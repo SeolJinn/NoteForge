@@ -4,20 +4,27 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using NoteForge.Helpers;
+using NoteForge.Interfaces;
 using NoteForge.Models;
 using Windows.Storage;
 
 namespace NoteForge.Services;
 
-public class FolderService
+public class FolderService : IFolderService
 {
     private const string ExpandedFoldersKey = "ExpandedFolders";
 
     private readonly ApplicationDataContainer _localSettings;
+    private readonly INoteService _noteService;
+    private readonly ILogger<FolderService> _logger;
 
-    public FolderService()
+    public FolderService(INoteService noteService, ILogger<FolderService> logger)
     {
         _localSettings = ApplicationData.Current.LocalSettings;
+        _noteService = noteService;
+        _logger = logger;
     }
 
     public Folder BuildFolderTree(string vaultPath)
@@ -67,99 +74,123 @@ public class FolderService
                 folder.Notes.Add(note);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to read folder contents: {Path}", folder.DirectoryPath);
         }
     }
 
-    public bool CreateFolder(string parentPath, string name)
+    public OperationResult CreateFolder(string parentPath, string name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            return false;
+            return OperationResult.Fail("Folder name cannot be empty.");
         }
 
         var sanitizedName = SanitizeFolderName(name);
         if (string.IsNullOrWhiteSpace(sanitizedName))
         {
-            return false;
+            return OperationResult.Fail("Folder name contains only invalid characters.");
         }
 
         var folderPath = Path.Combine(parentPath, sanitizedName);
 
+        if (!PathValidator.IsWithinVault(folderPath, _noteService.CurrentNotebookPath))
+        {
+            return OperationResult.Fail("The folder path is outside the vault.");
+        }
+
         if (Directory.Exists(folderPath))
         {
-            return false;
+            return OperationResult.Fail("A folder with that name already exists.");
         }
 
         try
         {
             Directory.CreateDirectory(folderPath);
-            return true;
+            return OperationResult.Ok();
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            _logger.LogError(ex, "Failed to create folder: {Path}", folderPath);
+            return OperationResult.Fail("Failed to create the folder. Check permissions.");
         }
     }
 
-    public bool RenameFolder(string folderPath, string newName)
+    public OperationResult RenameFolder(string folderPath, string newName)
     {
-        if (string.IsNullOrWhiteSpace(newName) || !Directory.Exists(folderPath))
+        if (string.IsNullOrWhiteSpace(newName))
         {
-            return false;
+            return OperationResult.Fail("Folder name cannot be empty.");
+        }
+
+        if (!Directory.Exists(folderPath))
+        {
+            return OperationResult.Fail("The folder no longer exists.");
         }
 
         var sanitizedName = SanitizeFolderName(newName);
         if (string.IsNullOrWhiteSpace(sanitizedName))
         {
-            return false;
+            return OperationResult.Fail("Folder name contains only invalid characters.");
         }
 
         var parentPath = Path.GetDirectoryName(folderPath);
         if (string.IsNullOrEmpty(parentPath))
         {
-            return false;
+            return OperationResult.Fail("Could not determine parent directory.");
         }
 
         var newPath = Path.Combine(parentPath, sanitizedName);
 
+        if (!PathValidator.IsWithinVault(newPath, _noteService.CurrentNotebookPath))
+        {
+            return OperationResult.Fail("The name contains invalid path characters.");
+        }
+
         if (Directory.Exists(newPath))
         {
-            return false;
+            return OperationResult.Fail("A folder with that name already exists.");
         }
 
         try
         {
             Directory.Move(folderPath, newPath);
-            return true;
+            return OperationResult.Ok();
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            _logger.LogError(ex, "Failed to rename folder from {OldPath} to {NewPath}", folderPath, newPath);
+            return OperationResult.Fail("Failed to rename the folder. It may be in use.");
         }
     }
 
-    public bool DeleteFolder(string folderPath)
+    public OperationResult DeleteFolder(string folderPath)
     {
+        if (!PathValidator.IsWithinVault(folderPath, _noteService.CurrentNotebookPath))
+        {
+            return OperationResult.Fail("The folder path is outside the vault.");
+        }
+
         if (!Directory.Exists(folderPath))
         {
-            return false;
+            return OperationResult.Fail("The folder no longer exists.");
         }
 
         if (!IsFolderEmpty(folderPath))
         {
-            return false;
+            return OperationResult.Fail("Cannot delete a non-empty folder.");
         }
 
         try
         {
             Directory.Delete(folderPath);
-            return true;
+            return OperationResult.Ok();
         }
-        catch
+        catch (Exception ex)
         {
-            return false;
+            _logger.LogError(ex, "Failed to delete folder: {Path}", folderPath);
+            return OperationResult.Fail("Failed to delete the folder. It may be in use.");
         }
     }
 
@@ -174,15 +205,16 @@ public class FolderService
         {
             return !Directory.EnumerateFileSystemEntries(folderPath).Any();
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to check if folder is empty: {Path}", folderPath);
             return false;
         }
     }
 
     public void SaveExpandedState(Folder rootFolder)
     {
-        var expandedPaths = new List<string>();
+        List<string> expandedPaths = [];
         CollectExpandedPaths(rootFolder, expandedPaths);
 
         try
@@ -190,8 +222,9 @@ public class FolderService
             var json = JsonSerializer.Serialize(expandedPaths);
             _localSettings.Values[ExpandedFoldersKey] = json;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to save expanded folder state");
         }
     }
 
@@ -215,14 +248,15 @@ public class FolderService
             if (_localSettings.Values.TryGetValue(ExpandedFoldersKey, out var value) && value is string json)
             {
                 var expandedPaths = JsonSerializer.Deserialize<List<string>>(json);
-                if (expandedPaths != null)
+                if (expandedPaths is not null)
                 {
                     ApplyExpandedState(rootFolder, new HashSet<string>(expandedPaths, StringComparer.OrdinalIgnoreCase));
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to load expanded folder state");
         }
     }
 

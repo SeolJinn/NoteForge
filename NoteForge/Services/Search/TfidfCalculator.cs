@@ -41,7 +41,7 @@ public class TfidfCalculator
         _termFrequency.Clear();
         _documentLengths.Clear();
 
-        var notesList = notes.ToList();
+        List<Note> notesList = [.. notes];
         _totalDocuments = notesList.Count;
 
         foreach (var note in notesList)
@@ -77,13 +77,72 @@ public class TfidfCalculator
         _avgDocumentLength = _documentLengths.Values.DefaultIfEmpty(0).Average();
     }
 
+    public Dictionary<string, Dictionary<string, double>> GetTfidfVectors()
+    {
+        Dictionary<string, Dictionary<string, double>> vectors = [];
+
+        foreach (var (filePath, tf) in _termFrequency)
+        {
+            Dictionary<string, double> vector = [];
+
+            foreach (var (term, termFreq) in tf)
+            {
+                var idf = CalculateIdf(term);
+                var weight = termFreq * idf;
+                if (weight > 0)
+                    vector[term] = weight;
+            }
+
+            if (_documentLengths.TryGetValue(filePath, out var docLength) && _avgDocumentLength > 0)
+            {
+                var lengthNorm = 1.0 / (1.0 + Math.Log(1.0 + (docLength / _avgDocumentLength)));
+                foreach (var term in vector.Keys)
+                {
+                    vector[term] *= lengthNorm;
+                }
+            }
+
+            vectors[filePath] = vector;
+        }
+
+        return vectors;
+    }
+
+    public static double SparseCosineSimilarity(Dictionary<string, double> a, Dictionary<string, double> b)
+    {
+        if (a.Count is 0 || b.Count is 0)
+            return 0;
+
+        var (smaller, larger) = a.Count <= b.Count ? (a, b) : (b, a);
+
+        double dotProduct = 0;
+        foreach (var (term, weight) in smaller)
+        {
+            if (larger.TryGetValue(term, out var otherWeight))
+                dotProduct += weight * otherWeight;
+        }
+
+        if (dotProduct is 0)
+            return 0;
+
+        double magnitudeA = 0;
+        foreach (var weight in a.Values)
+            magnitudeA += weight * weight;
+
+        double magnitudeB = 0;
+        foreach (var weight in b.Values)
+            magnitudeB += weight * weight;
+
+        return dotProduct / (Math.Sqrt(magnitudeA) * Math.Sqrt(magnitudeB));
+    }
+
     public List<(Note note, double score)> Search(IEnumerable<Note> notes, string query)
     {
         var queryTerms = Tokenize(query);
         if (queryTerms.Count == 0)
             return [];
 
-        var scores = new List<(Note note, double score)>();
+        List<(Note note, double score)> scores = [];
 
         foreach (var note in notes)
         {
@@ -115,6 +174,28 @@ public class TfidfCalculator
                 var idf = CalculateIdf(term);
                 score += termFreq * idf;
             }
+            else if (term.Length >= 3)
+            {
+                var bestScore = 0.0;
+
+                foreach (var (token, tokenFreq) in tf)
+                {
+                    if (!token.StartsWith(term, StringComparison.Ordinal))
+                        continue;
+
+                    var discount = (double)term.Length / token.Length;
+                    var candidate = tokenFreq * discount;
+
+                    if (candidate > bestScore)
+                        bestScore = candidate;
+                }
+
+                if (bestScore > 0)
+                {
+                    var idf = CalculateIdf(term);
+                    score += bestScore * idf;
+                }
+            }
         }
 
         if (_documentLengths.TryGetValue(filePath, out var docLength) && _avgDocumentLength > 0)
@@ -128,10 +209,24 @@ public class TfidfCalculator
 
     private double CalculateIdf(string term)
     {
-        if (!_documentFrequency.TryGetValue(term, out var docFreq))
+        if (_documentFrequency.TryGetValue(term, out var docFreq))
+            return Math.Log((double)_totalDocuments / docFreq);
+
+        if (term.Length < 3)
             return 0;
 
-        return Math.Log((double)_totalDocuments / docFreq);
+        var summedFreq = 0;
+        foreach (var (token, freq) in _documentFrequency)
+        {
+            if (token.StartsWith(term, StringComparison.Ordinal))
+                summedFreq += freq;
+        }
+
+        if (summedFreq is 0)
+            return 0;
+
+        var cappedFreq = Math.Min(summedFreq, _totalDocuments);
+        return Math.Log((double)_totalDocuments / cappedFreq);
     }
 
     private List<string> Tokenize(string text)
@@ -139,14 +234,11 @@ public class TfidfCalculator
         if (string.IsNullOrWhiteSpace(text))
             return [];
 
-        var tokens = text
+        return [.. text
             .ToLowerInvariant()
             .Split([' ', '\t', '\n', '\r', '.', ',', '!', '?', ';', ':', '"', '\'', '(', ')', '[', ']', '{', '}', '-', '_', '/', '\\', '#', '*', '`'],
                 StringSplitOptions.RemoveEmptyEntries)
-            .Where(t => IsValidToken(t))
-            .ToList();
-
-        return tokens;
+            .Where(t => IsValidToken(t))];
     }
 
     private bool IsValidToken(string token)

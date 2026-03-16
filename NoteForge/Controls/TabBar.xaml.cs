@@ -41,9 +41,9 @@ public sealed partial class TabBar : UserControl
         TabsCollection.SelectedItem = item;
     }
 
-    private void OnTabSelected(object sender, SelectionChangedEventArgs e)
+    private void OnTabClicked(object sender, ItemClickEventArgs e)
     {
-        if (e.AddedItems.Count > 0 && e.AddedItems[0] is Tab tab)
+        if (e.ClickedItem is Tab tab)
         {
             TabSelected?.Invoke(this, tab);
         }

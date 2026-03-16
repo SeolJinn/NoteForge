@@ -23,7 +23,7 @@ public sealed partial class QuickFileNavigator : UserControl
 
     public void Show(IEnumerable<Note> notes, XamlRoot xamlRoot)
     {
-        var allNotes = notes.ToList();
+        List<Note> allNotes = [.. notes];
 
         var searchBox = new AutoSuggestBox
         {
@@ -77,7 +77,7 @@ public sealed partial class QuickFileNavigator : UserControl
             {
                 var query = searchBox.Text;
                 var searchResults = App.SearchService.SearchByName(allNotes, query);
-                searchBox.ItemsSource = searchResults.Take(10).ToList();
+                searchBox.ItemsSource = (List<Note>)[.. searchResults.Take(10)];
             }
         };
 
@@ -115,7 +115,7 @@ public sealed partial class QuickFileNavigator : UserControl
 
         Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
-            searchBox.ItemsSource = allNotes.Take(10).ToList();
+            searchBox.ItemsSource = (List<Note>)[.. allNotes.Take(10)];
             searchBox.Focus(FocusState.Programmatic);
         });
     }

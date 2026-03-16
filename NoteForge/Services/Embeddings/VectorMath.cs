@@ -42,13 +42,21 @@ public static class VectorMath
         return dotProduct / (MathF.Sqrt(magnitudeA) * MathF.Sqrt(magnitudeB));
     }
 
+    public static double HarmonicMean(double a, double b)
+    {
+        if (a + b is 0)
+            return 0;
+
+        return 2.0 * (a * b) / (a + b);
+    }
+
     public static List<(T item, float score)> RankBySimilarity<T>(
         float[] queryEmbedding,
         IEnumerable<(T item, float[] embedding)> candidates,
         float minThreshold = 0.3f,
         int maxResults = 50)
     {
-        var results = new List<(T item, float score)>();
+        List<(T item, float score)> results = [];
 
         foreach (var (item, embedding) in candidates)
         {
@@ -59,6 +67,6 @@ public static class VectorMath
             }
         }
 
-        return results.OrderByDescending(x => x.score).Take(maxResults).ToList();
+        return [.. results.OrderByDescending(x => x.score).Take(maxResults)];
     }
 }

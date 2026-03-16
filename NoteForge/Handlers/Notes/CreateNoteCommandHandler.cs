@@ -3,14 +3,18 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NoteForge.Helpers;
 using NoteForge.Interfaces;
 using NoteForge.Models;
-using NoteForge.Services.Search;
 
 namespace NoteForge.Handlers.Notes;
 
-public class CreateNoteCommandHandler(INoteService noteService) : IRequestHandler<CreateNoteCommandRequest, Note?>
+public class CreateNoteCommandHandler(
+    INoteService noteService,
+    IEmbeddingService embeddingService,
+    ISemanticSearchStrategy semanticSearch,
+    ILogger<CreateNoteCommandHandler> logger) : IRequestHandler<CreateNoteCommandRequest, Note?>
 {
     public async ValueTask<Note?> Handle(CreateNoteCommandRequest request, CancellationToken cancellationToken)
     {
@@ -22,6 +26,11 @@ public class CreateNoteCommandHandler(INoteService noteService) : IRequestHandle
         try
         {
             var targetPath = request.TargetFolderPath ?? noteService.CurrentNotebookPath;
+
+            if (!PathValidator.IsWithinVault(targetPath, noteService.CurrentNotebookPath))
+            {
+                return null;
+            }
 
             string baseName = "Untitled";
             string fileName = baseName + ".md";
@@ -45,27 +54,14 @@ public class CreateNoteCommandHandler(INoteService noteService) : IRequestHandle
                 Text = string.Empty
             };
 
-            App.Services.GetRequiredService<SemanticSearchStrategy>().InvalidateIndex();
-
-            if (App.EmbeddingService is not null)
-            {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await App.EmbeddingService.GenerateEmbeddingForNoteAsync(note, cancellationToken);
-                        App.Services.GetRequiredService<SemanticSearchStrategy>().InvalidateEmbeddingsCache();
-                    }
-                    catch (Exception)
-                    {
-                    }
-                }, cancellationToken);
-            }
+            semanticSearch.InvalidateIndex();
+            embeddingService.QueueEmbeddingUpdate(note, onComplete: semanticSearch.InvalidateEmbeddingsCache);
 
             return note;
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogError(ex, "Failed to create note");
             return null;
         }
     }

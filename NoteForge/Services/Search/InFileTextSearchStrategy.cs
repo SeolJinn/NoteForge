@@ -13,7 +13,7 @@ public class InFileTextSearchStrategy : ISearchStrategy<string, TextMatch>
 {
     public IEnumerable<TextMatch> Search(string content, string query)
     {
-        var matches = new List<TextMatch>();
+        List<TextMatch> matches = [];
 
         if (string.IsNullOrEmpty(query) || string.IsNullOrEmpty(content))
         {

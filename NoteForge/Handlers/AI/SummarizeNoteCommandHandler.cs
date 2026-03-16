@@ -2,14 +2,14 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using NoteForge.Interfaces;
 using NoteForge.Models;
-using NoteForge.Services;
 
 namespace NoteForge.Handlers.AI;
 
-public class SummarizeNoteCommandHandler(OllamaService ollamaService) : IRequestHandler<SummarizeNoteCommandRequest, IAsyncEnumerable<string>>
+public class SummarizeNoteCommandHandler(IOllamaService ollamaService) : IRequestHandler<SummarizeNoteCommandRequest, IAsyncEnumerable<string>>
 {
-    private readonly OllamaService _ollamaService = ollamaService;
+    private readonly IOllamaService _ollamaService = ollamaService;
 
     public ValueTask<IAsyncEnumerable<string>> Handle(SummarizeNoteCommandRequest request, CancellationToken cancellationToken)
     {

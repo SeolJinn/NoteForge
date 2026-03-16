@@ -1,18 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
-using NoteForge.Services;
+using NoteForge.Interfaces;
+using NoteForge.Models;
 
 namespace NoteForge.Handlers.Folders;
 
-public class RenameFolderCommandHandler(FolderService folderService)
-    : IRequestHandler<RenameFolderCommandRequest, bool>
+public class RenameFolderCommandHandler(IFolderService folderService)
+    : IRequestHandler<RenameFolderCommandRequest, OperationResult>
 {
-    public ValueTask<bool> Handle(RenameFolderCommandRequest request, CancellationToken cancellationToken)
+    public ValueTask<OperationResult> Handle(RenameFolderCommandRequest request, CancellationToken cancellationToken)
     {
         var result = folderService.RenameFolder(request.FolderPath, request.NewName);
         return ValueTask.FromResult(result);
     }
 }
 
-public sealed record RenameFolderCommandRequest(string FolderPath, string NewName) : IRequest<bool>;
+public sealed record RenameFolderCommandRequest(string FolderPath, string NewName) : IRequest<OperationResult>;

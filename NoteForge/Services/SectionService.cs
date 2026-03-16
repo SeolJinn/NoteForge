@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using NoteForge.Interfaces;
 using NoteForge.Models;
 
 namespace NoteForge.Services;
 
-public class SectionService
+public class SectionService : ISectionService
 {
     private const string FavoritesKey = "FavoriteNotes";
     private const string FavoritesSectionId = "favorites";
@@ -29,12 +30,12 @@ public class SectionService
         }
     }
 
-    public static bool IsFavorite(string noteFilePath)
+    public bool IsFavorite(string noteFilePath)
     {
         return GetFavorites().Contains(noteFilePath);
     }
 
-    public static List<string> GetFavorites()
+    public List<string> GetFavorites()
     {
         var json = GetSetting(FavoritesKey, "[]");
         try

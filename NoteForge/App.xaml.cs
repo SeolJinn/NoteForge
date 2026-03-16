@@ -21,11 +21,11 @@ public partial class App : Application
     public static IDialogService DialogService => Services.GetRequiredService<IDialogService>();
     public static IMediator Mediator => Services.GetRequiredService<IMediator>();
     public static ILoggerFactory LoggerFactory => Services.GetRequiredService<ILoggerFactory>();
-    public static SectionService SectionService => Services.GetRequiredService<SectionService>();
-    public static FolderService FolderService => Services.GetRequiredService<FolderService>();
+    public static ISectionService SectionService => Services.GetRequiredService<ISectionService>();
+    public static IFolderService FolderService => Services.GetRequiredService<IFolderService>();
     public static ISearchService SearchService => Services.GetRequiredService<ISearchService>();
-    public static EmbeddingRepository? EmbeddingRepository { get; set; }
-    public static EmbeddingService? EmbeddingService { get; set; }
+    public static IEmbeddingRepository EmbeddingRepository => Services.GetRequiredService<IEmbeddingRepository>();
+    public static IEmbeddingService EmbeddingService => Services.GetRequiredService<IEmbeddingService>();
 
     public App()
     {
@@ -43,25 +43,24 @@ public partial class App : Application
             builder.AddDebug();
         });
 
-        // Register services
         services.AddSingleton<INoteService, NoteService>();
         services.AddSingleton<ITabManager, TabManager>();
         services.AddSingleton<IMarkdownPreviewService, MarkdownPreviewService>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IFolderDialogService, FolderDialogService>();
-        services.AddSingleton<OllamaService>();
-        services.AddSingleton<SectionService>();
-        services.AddSingleton<FolderService>();
+        services.AddSingleton<IOllamaService, OllamaService>();
+        services.AddSingleton<ISectionService, SectionService>();
+        services.AddSingleton<IFolderService, FolderService>();
         services.AddSingleton<FolderTreeService>();
         services.AddSingleton<SidebarCoordinator>();
         services.AddSingleton<ISearchService, SearchService>();
 
-        // Register embedding services
-        services.AddSingleton<SemanticSearchStrategy>();
+        services.AddSingleton<IEmbeddingRepository, EmbeddingRepository>();
+        services.AddSingleton<IEmbeddingService, EmbeddingService>();
+        services.AddSingleton<ISemanticSearchStrategy, SemanticSearchStrategy>();
         services.AddSingleton<EmbeddingDebugHelper>();
         services.AddSingleton<TfidfCalculator>();
 
-        // Register Mediator
         services.AddMediator();
 
         return services.BuildServiceProvider();

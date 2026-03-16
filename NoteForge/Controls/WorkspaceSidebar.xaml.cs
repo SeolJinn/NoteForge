@@ -4,9 +4,9 @@ using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using NoteForge.Interfaces;
 using NoteForge.Models;
 using NoteForge.Services;
-using NoteForge.Services.Search;
 
 namespace NoteForge.Controls;
 
@@ -29,7 +29,7 @@ public sealed partial class WorkspaceSidebar : UserControl
     public event EventHandler<Note>? ToggleFavoriteRequested;
 
     private readonly FolderTreeService _folderTreeService;
-    private readonly SemanticSearchStrategy _searchStrategy;
+    private readonly ISemanticSearchStrategy _searchStrategy;
     private Folder? _rootFolder;
     private SectionView? _favoritesView;
     private List<Note> _allNotes = [];
@@ -39,7 +39,7 @@ public sealed partial class WorkspaceSidebar : UserControl
     {
         InitializeComponent();
         _folderTreeService = App.Services.GetRequiredService<FolderTreeService>();
-        _searchStrategy = App.Services.GetRequiredService<SemanticSearchStrategy>();
+        _searchStrategy = App.Services.GetRequiredService<ISemanticSearchStrategy>();
     }
 
     public void LoadFolders(Folder rootFolder, NoteSection? favoritesSection)
@@ -137,6 +137,7 @@ public sealed partial class WorkspaceSidebar : UserControl
 
         if (mode is SidebarViewMode.Folder)
         {
+            ClearSearch();
             FoldersContainer.Visibility = Visibility.Visible;
             SearchView.Visibility = Visibility.Collapsed;
         }
@@ -145,6 +146,12 @@ public sealed partial class WorkspaceSidebar : UserControl
             FoldersContainer.Visibility = Visibility.Collapsed;
             SearchView.Visibility = Visibility.Visible;
         }
+    }
+
+    public void ClearSearch()
+    {
+        SearchTextBox.Text = string.Empty;
+        ShowSearchOptions();
     }
 
     public void SetVaultName(string name)
@@ -180,7 +187,7 @@ public sealed partial class WorkspaceSidebar : UserControl
     {
     }
 
-    private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
+    private async void OnSearchTextChanged(object sender, TextChangedEventArgs e)
     {
         var query = SearchTextBox.Text?.Trim() ?? string.Empty;
 
@@ -191,7 +198,7 @@ public sealed partial class WorkspaceSidebar : UserControl
         }
 
         ShowResults();
-        var results = _searchStrategy.Search(_allNotes, query).First();
+        var results = await _searchStrategy.SearchAsync(_allNotes, query);
         SearchResultsControl.SetResults(results);
     }
 

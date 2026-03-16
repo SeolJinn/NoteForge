@@ -38,7 +38,6 @@
     <Grid>
         <Canvas x:Name="GraphCanvas"
                 Background="Transparent"
-                PointerPressed="OnCanvasPointerPressed"
                 PointerMoved="OnCanvasPointerMoved"
                 PointerReleased="OnCanvasPointerReleased"
                 SizeChanged="OnCanvasSizeChanged">

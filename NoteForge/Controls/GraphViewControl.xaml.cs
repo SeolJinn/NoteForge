@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Mediator;
@@ -26,11 +27,14 @@ public sealed partial class GraphViewControl : UserControl
     private GraphSettings _settings = new();
     private readonly Dictionary<GraphNode, Ellipse> _nodeVisuals = [];
     private readonly Dictionary<GraphEdge, Line> _edgeVisuals = [];
+    private readonly List<(INotifyPropertyChanged Source, PropertyChangedEventHandler Handler)> _propertyChangedSubscriptions = [];
     private GraphNode? _draggedNode;
     private bool _isSimulationRunning;
     private DispatcherTimer? _simulationTimer;
     private const double NodeRadius = 8.0;
     private const double SimulationDamping = 0.8;
+    private const double DefaultCanvasCenter = 400.0;
+    private const double DefaultSpreadRadius = 240.0;
 
     public GraphViewControl()
     {
@@ -81,11 +85,11 @@ public sealed partial class GraphViewControl : UserControl
         var centerY = GraphCanvas.ActualHeight / 2;
         var spreadRadius = Math.Min(centerX, centerY) * 0.6;
 
-        if (centerX == 0 || centerY == 0)
+        if (centerX is 0 || centerY is 0)
         {
-            centerX = 400;
-            centerY = 400;
-            spreadRadius = 240;
+            centerX = DefaultCanvasCenter;
+            centerY = DefaultCanvasCenter;
+            spreadRadius = DefaultSpreadRadius;
         }
 
         foreach (var node in _graphData.Nodes)
@@ -100,8 +104,18 @@ public sealed partial class GraphViewControl : UserControl
         }
     }
 
+    private void UnsubscribePropertyChangedHandlers()
+    {
+        foreach (var (source, handler) in _propertyChangedSubscriptions)
+        {
+            source.PropertyChanged -= handler;
+        }
+        _propertyChangedSubscriptions.Clear();
+    }
+
     private void RenderGraph()
     {
+        UnsubscribePropertyChangedHandlers();
         NodesCanvas.Children.Clear();
         EdgesCanvas.Children.Clear();
         _nodeVisuals.Clear();
@@ -140,11 +154,13 @@ public sealed partial class GraphViewControl : UserControl
             Opacity = Math.Clamp(edge.Strength, 0.3, 0.9)
         };
 
-        edge.PropertyChanged += (s, e) =>
+        PropertyChangedEventHandler handler = (s, e) =>
         {
-            if (e.PropertyName == nameof(GraphEdge.IsVisible))
+            if (e.PropertyName is nameof(GraphEdge.IsVisible))
                 line.Visibility = edge.IsVisible ? Visibility.Visible : Visibility.Collapsed;
         };
+        edge.PropertyChanged += handler;
+        _propertyChangedSubscriptions.Add((edge, handler));
 
         return line;
     }
@@ -203,17 +219,19 @@ public sealed partial class GraphViewControl : UserControl
             Foreground = new SolidColorBrush(Colors.White)
         };
 
-        node.PropertyChanged += (s, e) =>
+        PropertyChangedEventHandler handler = (s, e) =>
         {
-            if (e.PropertyName == nameof(GraphNode.X))
+            if (e.PropertyName is nameof(GraphNode.X))
             {
                 Canvas.SetLeft(textBlock, node.X - textBlock.ActualWidth / 2);
             }
-            else if (e.PropertyName == nameof(GraphNode.Y))
+            else if (e.PropertyName is nameof(GraphNode.Y))
             {
                 Canvas.SetTop(textBlock, node.Y + NodeRadius + 4);
             }
         };
+        node.PropertyChanged += handler;
+        _propertyChangedSubscriptions.Add((node, handler));
 
         Canvas.SetLeft(textBlock, node.X);
         Canvas.SetTop(textBlock, node.Y + NodeRadius + 4);
@@ -261,10 +279,10 @@ public sealed partial class GraphViewControl : UserControl
         var centerX = GraphCanvas.ActualWidth / 2;
         var centerY = GraphCanvas.ActualHeight / 2;
 
-        if (centerX == 0 || centerY == 0)
+        if (centerX is 0 || centerY is 0)
         {
-            centerX = 400;
-            centerY = 400;
+            centerX = DefaultCanvasCenter;
+            centerY = DefaultCanvasCenter;
         }
 
         foreach (var node in _graphData.Nodes)
@@ -351,10 +369,6 @@ public sealed partial class GraphViewControl : UserControl
         }
     }
 
-    private void OnCanvasPointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-    }
-
     private void OnCanvasPointerMoved(object sender, PointerRoutedEventArgs e)
     {
         if (_draggedNode is not null)
@@ -397,7 +411,7 @@ public sealed partial class GraphViewControl : UserControl
     {
         UpdateSettingsFromUI();
 
-        var notes = _graphData.Nodes.Select(n => n.Note).ToList();
+        List<Note> notes = [.. _graphData.Nodes.Select(n => n.Note)];
         if (notes.Count > 0)
         {
             await LoadGraphAsync(notes);
@@ -428,6 +442,7 @@ public sealed partial class GraphViewControl : UserControl
     public void Cleanup()
     {
         StopPhysicsSimulation();
+        UnsubscribePropertyChangedHandlers();
         _graphData.Clear();
         _nodeVisuals.Clear();
         _edgeVisuals.Clear();

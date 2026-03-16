@@ -1,23 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
-using NoteForge.Services;
+using NoteForge.Interfaces;
+using NoteForge.Models;
 
 namespace NoteForge.Handlers.Folders;
 
-public class DeleteFolderCommandHandler(FolderService folderService)
-    : IRequestHandler<DeleteFolderCommandRequest, bool>
+public class DeleteFolderCommandHandler(IFolderService folderService)
+    : IRequestHandler<DeleteFolderCommandRequest, OperationResult>
 {
-    public ValueTask<bool> Handle(DeleteFolderCommandRequest request, CancellationToken cancellationToken)
+    public ValueTask<OperationResult> Handle(DeleteFolderCommandRequest request, CancellationToken cancellationToken)
     {
-        if (!folderService.IsFolderEmpty(request.FolderPath))
-        {
-            return ValueTask.FromResult(false);
-        }
-
         var result = folderService.DeleteFolder(request.FolderPath);
         return ValueTask.FromResult(result);
     }
 }
 
-public sealed record DeleteFolderCommandRequest(string FolderPath) : IRequest<bool>;
+public sealed record DeleteFolderCommandRequest(string FolderPath) : IRequest<OperationResult>;

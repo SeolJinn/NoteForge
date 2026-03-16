@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.Extensions.Logging;
+using NoteForge.Interfaces;
 using NoteForge.Models;
 using NoteForge.Services.Embeddings;
 using NoteForge.Services.Search;
@@ -19,6 +20,7 @@ public record BuildGraphQueryRequest(
 ) : IRequest<GraphData>;
 
 public partial class BuildGraphQueryHandler(
+    IEmbeddingRepository embeddingRepository,
     ILogger<BuildGraphQueryHandler> logger,
     TfidfCalculator tfidfCalculator) : IRequestHandler<BuildGraphQueryRequest, GraphData>
 {
@@ -69,7 +71,7 @@ public partial class BuildGraphQueryHandler(
         List<Note> notes,
         Dictionary<string, GraphNode> nodeMap)
     {
-        var edges = new List<GraphEdge>();
+        List<GraphEdge> edges = [];
 
         foreach (var sourceNote in notes)
         {
@@ -101,17 +103,24 @@ public partial class BuildGraphQueryHandler(
         GraphSettings settings,
         List<GraphEdge> explicitEdges)
     {
-        if (App.EmbeddingRepository is null)
+        if (!embeddingRepository.IsInitialized)
         {
             _logger.LogWarning("EmbeddingRepository not available for semantic edges");
             return [];
         }
 
-        var edges = new List<GraphEdge>();
-        var allEmbeddings = await App.EmbeddingRepository.GetAllEmbeddingsAsync();
+        List<GraphEdge> edges = [];
+        var allEmbeddings = await embeddingRepository.GetAllEmbeddingsAsync();
         var embeddingMap = allEmbeddings.ToDictionary(e => e.FilePath, e => e.Embedding);
 
+        var missingEmbeddings = notes.Where(n => !embeddingMap.ContainsKey(n.FilePath)).ToList();
+        _logger.LogDebug("Embeddings available for {EmbeddingCount}/{NoteCount} notes",
+            notes.Count - missingEmbeddings.Count, notes.Count);
+        foreach (var note in missingEmbeddings)
+            _logger.LogDebug("Missing embedding for: {FilePath}", note.FilePath);
+
         _tfidfCalculator.BuildIndex(notes);
+        var tfidfVectors = _tfidfCalculator.GetTfidfVectors();
 
         var explicitPairs = new HashSet<string>(
             explicitEdges.Select(e => GetEdgeKey(e.Source.FilePath, e.Target.FilePath))
@@ -123,27 +132,29 @@ public partial class BuildGraphQueryHandler(
             if (!embeddingMap.TryGetValue(sourceNote.FilePath, out var sourceEmbedding))
                 continue;
 
+            tfidfVectors.TryGetValue(sourceNote.FilePath, out var sourceTfidf);
+
             for (int j = i + 1; j < notes.Count; j++)
             {
                 var targetNote = notes[j];
                 if (!embeddingMap.TryGetValue(targetNote.FilePath, out var targetEmbedding))
                     continue;
 
+                var semanticScore = VectorMath.CosineSimilarity(sourceEmbedding, targetEmbedding);
+                if (semanticScore < settings.SemanticThreshold)
+                    continue;
+
+                double tfidfScore = 0;
+                if (sourceTfidf is not null && tfidfVectors.TryGetValue(targetNote.FilePath, out var targetTfidf))
+                    tfidfScore = TfidfCalculator.SparseCosineSimilarity(sourceTfidf, targetTfidf);
+
+                if (tfidfScore < settings.TfidfThreshold)
+                    continue;
+
+                var combinedScore = VectorMath.HarmonicMean(semanticScore, tfidfScore);
+
                 var edgeKey = GetEdgeKey(sourceNote.FilePath, targetNote.FilePath);
                 var hasExplicitLink = explicitPairs.Contains(edgeKey);
-
-                var semanticScore = VectorMath.CosineSimilarity(sourceEmbedding, targetEmbedding);
-
-                var tfidfScore = CalculateTfidfSimilarity(sourceNote, targetNote);
-
-                if (semanticScore < settings.SemanticThreshold || tfidfScore < settings.TfidfThreshold)
-                    continue;
-
-                var harmonicMean = 2.0 * (semanticScore * tfidfScore) / (semanticScore + tfidfScore);
-
-                if (harmonicMean < 0.25)
-                    continue;
-
                 var edgeType = hasExplicitLink ? EdgeType.Hybrid : EdgeType.Semantic;
 
                 edges.Add(new GraphEdge
@@ -151,7 +162,7 @@ public partial class BuildGraphQueryHandler(
                     Source = nodeMap[sourceNote.FilePath],
                     Target = nodeMap[targetNote.FilePath],
                     Type = edgeType,
-                    Strength = (float)harmonicMean
+                    Strength = (float)combinedScore
                 });
             }
         }
@@ -160,20 +171,9 @@ public partial class BuildGraphQueryHandler(
         return edges;
     }
 
-    private double CalculateTfidfSimilarity(Note note1, Note note2)
-    {
-        var results1 = _tfidfCalculator.Search([note2], note1.Text);
-        var score1 = results1.FirstOrDefault(r => r.note.FilePath == note2.FilePath).score;
-
-        var results2 = _tfidfCalculator.Search([note1], note2.Text);
-        var score2 = results2.FirstOrDefault(r => r.note.FilePath == note1.FilePath).score;
-
-        return Math.Max(score1, score2);
-    }
-
     private List<string> ExtractMarkdownLinks(string text, string sourceFilePath)
     {
-        var links = new List<string>();
+        List<string> links = [];
         var sourceDir = Path.GetDirectoryName(sourceFilePath) ?? "";
 
         var markdownMatches = MarkdownLinkRegex().Matches(text);

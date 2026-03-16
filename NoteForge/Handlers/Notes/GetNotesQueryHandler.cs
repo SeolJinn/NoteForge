@@ -1,15 +1,17 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using Microsoft.Extensions.Logging;
 using NoteForge.Interfaces;
 using NoteForge.Models;
 
 namespace NoteForge.Handlers.Notes;
 
-public class GetNotesQueryHandler(INoteService noteService) : IRequestHandler<GetNotesQueryRequest, IEnumerable<Note>>
+public class GetNotesQueryHandler(INoteService noteService, ILogger<GetNotesQueryHandler> logger) : IRequestHandler<GetNotesQueryRequest, IEnumerable<Note>>
 {
     public async ValueTask<IEnumerable<Note>> Handle(GetNotesQueryRequest request, CancellationToken cancellationToken)
     {
@@ -18,7 +20,7 @@ public class GetNotesQueryHandler(INoteService noteService) : IRequestHandler<Ge
             return [];
         }
 
-        var notes = new List<Note>();
+        List<Note> notes = [];
 
         try
         {
@@ -30,8 +32,9 @@ public class GetNotesQueryHandler(INoteService noteService) : IRequestHandler<Ge
                 notes.Add(note);
             }
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogError(ex, "Failed to load notes from {VaultPath}", noteService.CurrentNotebookPath);
         }
 
         return notes.OrderByDescending(n => n.Date);

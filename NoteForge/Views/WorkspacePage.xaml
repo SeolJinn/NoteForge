@@ -118,6 +118,11 @@
                            HorizontalAlignment="Center"/>
             </Border>
 
+            <!-- Toast Notification -->
+            <controls:ToastNotification Grid.Column="2"
+                                        x:Name="Toast"
+                                        Canvas.ZIndex="100"/>
+
             <!-- Content Area -->
             <Grid Grid.Column="2" Padding="0">
                 <!-- New Tab State -->

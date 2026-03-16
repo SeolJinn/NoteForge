@@ -2,12 +2,13 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml.Controls;
 using NoteForge.Interfaces;
 
 namespace NoteForge.Handlers.Preview;
 
-public class UpdatePreviewCommandHandler(IMarkdownPreviewService previewService)
+public class UpdatePreviewCommandHandler(IMarkdownPreviewService previewService, ILogger<UpdatePreviewCommandHandler> logger)
     : IRequestHandler<UpdatePreviewCommandRequest, bool>
 {
     public async ValueTask<bool> Handle(UpdatePreviewCommandRequest request, CancellationToken cancellationToken)
@@ -28,8 +29,9 @@ public class UpdatePreviewCommandHandler(IMarkdownPreviewService previewService)
             request.PreviewWebView.NavigateToString(previewService.WrapInHtmlDocument(html));
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogWarning(ex, "Failed to update markdown preview");
             return false;
         }
     }

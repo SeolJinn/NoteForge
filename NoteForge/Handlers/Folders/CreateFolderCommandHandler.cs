@@ -1,18 +1,19 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
-using NoteForge.Services;
+using NoteForge.Interfaces;
+using NoteForge.Models;
 
 namespace NoteForge.Handlers.Folders;
 
-public class CreateFolderCommandHandler(FolderService folderService)
-    : IRequestHandler<CreateFolderCommandRequest, bool>
+public class CreateFolderCommandHandler(IFolderService folderService)
+    : IRequestHandler<CreateFolderCommandRequest, OperationResult>
 {
-    public ValueTask<bool> Handle(CreateFolderCommandRequest request, CancellationToken cancellationToken)
+    public ValueTask<OperationResult> Handle(CreateFolderCommandRequest request, CancellationToken cancellationToken)
     {
         var result = folderService.CreateFolder(request.ParentPath, request.Name);
         return ValueTask.FromResult(result);
     }
 }
 
-public sealed record CreateFolderCommandRequest(string ParentPath, string Name) : IRequest<bool>;
+public sealed record CreateFolderCommandRequest(string ParentPath, string Name) : IRequest<OperationResult>;

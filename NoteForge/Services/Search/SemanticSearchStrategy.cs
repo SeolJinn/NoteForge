@@ -4,16 +4,18 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using NoteForge.Interfaces;
 using NoteForge.Models;
 using NoteForge.Services.Embeddings;
 
 namespace NoteForge.Services.Search;
 
 public class SemanticSearchStrategy(
-    OllamaService ollamaService,
-    ILogger<SemanticSearchStrategy> logger) : ISearchStrategy<IEnumerable<Note>, List<SearchResult>>
+    IOllamaService ollamaService,
+    IEmbeddingRepository embeddingRepository,
+    ILogger<SemanticSearchStrategy> logger) : ISemanticSearchStrategy
 {
-    private readonly OllamaService _ollamaService = ollamaService;
+    private readonly IOllamaService _ollamaService = ollamaService;
     private readonly ILogger<SemanticSearchStrategy> _logger = logger;
     private readonly TfidfCalculator _tfidfCalculator = new();
     private bool _tfidfIndexDirty = true;
@@ -30,23 +32,27 @@ public class SemanticSearchStrategy(
         _embeddingsCacheDirty = true;
     }
 
-    public IEnumerable<List<SearchResult>> Search(IEnumerable<Note> notes, string query)
+    public IEnumerable<SearchResult> Search(IEnumerable<Note> notes, string query)
     {
-        var task = Task.Run(async () => await SearchAsync(notes, query));
-        yield return task.GetAwaiter().GetResult();
+        return SearchCoreAsync(notes, query).GetAwaiter().GetResult();
     }
 
-    private async Task<List<SearchResult>> SearchAsync(IEnumerable<Note> notes, string query)
+    public async Task<List<SearchResult>> SearchAsync(IEnumerable<Note> notes, string query)
+    {
+        return await SearchCoreAsync(notes, query);
+    }
+
+    private async Task<List<SearchResult>> SearchCoreAsync(IEnumerable<Note> notes, string query)
     {
         try
         {
-            if (App.EmbeddingRepository is null)
+            if (!embeddingRepository.IsInitialized)
             {
                 _logger.LogWarning("EmbeddingRepository not initialized - vault may not be loaded");
                 return [];
             }
 
-            var notesList = notes.ToList();
+            List<Note> notesList = [.. notes];
 
             if (_tfidfIndexDirty)
             {
@@ -64,7 +70,7 @@ public class SemanticSearchStrategy(
 
             if (_embeddingsCacheDirty || _cachedEmbeddings is null)
             {
-                var allEmbeddings = await App.EmbeddingRepository.GetAllEmbeddingsAsync();
+                var allEmbeddings = await embeddingRepository.GetAllEmbeddingsAsync();
                 _cachedEmbeddings = allEmbeddings.ToDictionary(e => e.FilePath, e => e.Embedding);
                 _embeddingsCacheDirty = false;
                 _logger.LogDebug("Loaded {Count} embeddings from database", _cachedEmbeddings.Count);
@@ -82,7 +88,7 @@ public class SemanticSearchStrategy(
             var semanticScores = semanticResults.ToDictionary(r => r.item.FilePath, r => (double)r.score);
             var tfidfScores = tfidfResults.ToDictionary(r => r.note.FilePath, r => r.score);
 
-            var hybridResults = new List<(Note note, float hybridScore, float semanticScore, float tfidfScore)>();
+            List<(Note note, float hybridScore, float semanticScore, float tfidfScore)> hybridResults = [];
 
             foreach (var note in notesList.Where(n => embeddingMap.ContainsKey(n.FilePath)))
             {
@@ -92,8 +98,7 @@ public class SemanticSearchStrategy(
                 if (tfidfScore < 0.15 || semanticScore < 0.15)
                     continue;
 
-                var harmonicMean = 2.0 * (semanticScore * tfidfScore) / (semanticScore + tfidfScore);
-                var hybridScore = (float)harmonicMean;
+                var hybridScore = (float)VectorMath.HarmonicMean(semanticScore, tfidfScore);
 
                 var filenameBoost = 0f;
                 var queryLower = query.ToLowerInvariant();
@@ -110,10 +115,8 @@ public class SemanticSearchStrategy(
                 }
             }
 
-            var rankedResults = hybridResults
-                .OrderByDescending(r => r.hybridScore)
-                .Take(50)
-                .ToList();
+            List<(Note note, float hybridScore, float semanticScore, float tfidfScore)> rankedResults =
+                [.. hybridResults.OrderByDescending(r => r.hybridScore).Take(50)];
 
             _logger.LogInformation("Hybrid search for '{Query}' returned {Count} results", query, rankedResults.Count);
             foreach (var (note, hybridScore, semanticScore, tfidfScore) in rankedResults.Take(5))
@@ -152,11 +155,11 @@ public class SemanticSearchStrategy(
         };
     }
 
-    private List<MatchingLine> ExtractRelevantExcerpts(string text, string query, int maxExcerpts = 3)
+    private static List<MatchingLine> ExtractRelevantExcerpts(string text, string query, int maxExcerpts = 3)
     {
         var queryWords = query.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var lines = text.Split(['\r', '\n'], StringSplitOptions.None);
-        var matches = new List<(int lineNum, int matchCount, string line)>();
+        List<(int lineNum, int matchCount, string line)> matches = [];
 
         for (int i = 0; i < lines.Length; i++)
         {

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using NoteForge.Interfaces;
 using NoteForge.Models;
 
@@ -13,17 +14,19 @@ public class NoteService : INoteService
 {
     private const string VaultPathKey = "VaultPath";
     private const string RecentVaultsKey = "RecentVaults";
-    
+    private readonly ILogger<NoteService> _logger;
+
     public string CurrentNotebookPath { get; private set; } = string.Empty;
 
-    public string CurrentVaultName => string.IsNullOrEmpty(CurrentNotebookPath) 
-        ? string.Empty 
+    public string CurrentVaultName => string.IsNullOrEmpty(CurrentNotebookPath)
+        ? string.Empty
         : new DirectoryInfo(CurrentNotebookPath).Name;
 
     public bool IsConfigured => !string.IsNullOrEmpty(CurrentNotebookPath) && Directory.Exists(CurrentNotebookPath);
 
-    public NoteService()
+    public NoteService(ILogger<NoteService> logger)
     {
+        _logger = logger;
         CurrentNotebookPath = GetSetting(VaultPathKey, string.Empty);
     }
 
@@ -56,8 +59,9 @@ public class NoteService : INoteService
         {
             return JsonSerializer.Deserialize<List<VaultInfo>>(json) ?? [];
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to deserialize recent vaults");
             return [];
         }
     }

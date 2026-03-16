@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -70,6 +71,7 @@ public sealed partial class WorkspacePage : Page
 
     private async Task LoadNotes()
     {
+        await _mediator.Send(new InitializeWorkspaceCommand());
         var workspace = await _mediator.Send(new LoadWorkspaceQueryRequest());
         Sidebar.SetVaultName(workspace.VaultName);
 
@@ -78,7 +80,7 @@ public sealed partial class WorkspacePage : Page
 
         if (workspace.InitialNoteFilePath is not null)
         {
-            var allNotes = (await _mediator.Send(new GetNotesQueryRequest())).ToList();
+            List<Note> allNotes = [.. await _mediator.Send(new GetNotesQueryRequest())];
             var activeNote = allNotes.FirstOrDefault(n => n.FilePath == workspace.InitialNoteFilePath);
             if (activeNote is not null)
                 SetSelectedNote(activeNote);
@@ -93,6 +95,7 @@ public sealed partial class WorkspacePage : Page
 
     private async Task ResetWorkspaceAsync()
     {
+        Sidebar.ClearSearch();
         _tabManager.Tabs.Clear();
         SetSelectedNote(null);
         await LoadNotes();
@@ -131,22 +134,17 @@ public sealed partial class WorkspacePage : Page
     private async void OnSearchViewClicked(object sender, RoutedEventArgs e)
     {
         GraphView.Visibility = Visibility.Collapsed;
-        var allNotes = (await _mediator.Send(new GetNotesQueryRequest())).ToList();
+        List<Note> allNotes = [.. await _mediator.Send(new GetNotesQueryRequest())];
         _sidebarCoordinator.ShowSearchView(Sidebar, SidebarColumn, TitleBarSidebarColumn, SplitterBorder, allNotes);
     }
 
     private async void OnGraphViewClicked(object sender, RoutedEventArgs e)
     {
-        _sidebarCoordinator.ToggleSidebar(Sidebar, SidebarColumn, TitleBarSidebarColumn, SplitterBorder);
-
-        if (_tabManager.ActiveTab is not null)
-            _tabManager.ActiveTab.IsActive = false;
-
         EditorView.Visibility = Visibility.Collapsed;
         NewTabView.Visibility = Visibility.Collapsed;
         GraphView.Visibility = Visibility.Visible;
 
-        var allNotes = (await _mediator.Send(new GetNotesQueryRequest())).ToList();
+        List<Note> allNotes = [.. await _mediator.Send(new GetNotesQueryRequest())];
         await GraphView.LoadGraphAsync(allNotes);
     }
 
@@ -178,7 +176,16 @@ public sealed partial class WorkspacePage : Page
             () => EditorView.NavigateToLine(args.LineNumber));
     }
 
-    private void OnTabSelected(object sender, Tab tab) => _tabManager.ActivateTab(tab);
+    private void OnTabSelected(object sender, Tab tab)
+    {
+        if (GraphView.Visibility is Visibility.Visible)
+        {
+            GraphView.Visibility = Visibility.Collapsed;
+            UpdateEditorState();
+        }
+
+        _tabManager.ActivateTab(tab);
+    }
 
     private void OnCloseTabClicked(object sender, Tab tab) => _tabManager.CloseTab(tab);
 
@@ -188,6 +195,7 @@ public sealed partial class WorkspacePage : Page
     private async Task HandleActiveTabChangedAsync(Tab? activeTab)
     {
         TabBarControl.SetSelectedItem(activeTab);
+        GraphView.Visibility = Visibility.Collapsed;
 
         if (activeTab is null or { IsNewTab: true })
         {
@@ -209,6 +217,8 @@ public sealed partial class WorkspacePage : Page
 
     private void UpdateEditorState()
     {
+        GraphView.Visibility = Visibility.Collapsed;
+
         var showEditor = _selectedNote is not null && _tabManager.ActiveTab?.IsNewTab is not true;
         NewTabView.Visibility = showEditor ? Visibility.Collapsed : Visibility.Visible;
         EditorView.Visibility = showEditor ? Visibility.Visible : Visibility.Collapsed;
@@ -278,14 +288,18 @@ public sealed partial class WorkspacePage : Page
 
         if (string.Equals(newTitle, currentTitle, StringComparison.OrdinalIgnoreCase)) return;
 
-        if (await _mediator.Send(new RenameNoteCommandRequest(_selectedNote, newTitle)) && _tabManager.ActiveTab is not null)
+        var result = await _mediator.Send(new RenameNoteCommandRequest(_selectedNote, newTitle));
+        if (result.Success && _tabManager.ActiveTab is not null)
         {
             _tabManager.ActiveTab.DisplayName = _selectedNote.Filename;
             _tabManager.ActiveTab.FilePath = _selectedNote.FilePath;
             await LoadNotes();
         }
-        else
+        else if (!result.Success)
+        {
             SyncTitles(currentTitle);
+            Toast.Show(result.ErrorMessage!);
+        }
     }
 
     private void OnNoteContentChanged(object sender, string newContent)
@@ -313,6 +327,10 @@ public sealed partial class WorkspacePage : Page
             await LoadNotes();
             _tabManager.OpenTab(newNote);
         }
+        else
+        {
+            Toast.Show("Failed to create a new note.");
+        }
     }
 
     private async void OnGoToFileClicked(object sender, RoutedEventArgs e)
@@ -323,7 +341,7 @@ public sealed partial class WorkspacePage : Page
             _quickFileNavigator.NoteSelected += (s, note) => _tabManager.OpenTab(note);
         }
 
-        var allNotes = (await _mediator.Send(new GetNotesQueryRequest())).ToList();
+        List<Note> allNotes = [.. await _mediator.Send(new GetNotesQueryRequest())];
         _quickFileNavigator.Show(allNotes, XamlRoot);
     }
 
@@ -339,8 +357,11 @@ public sealed partial class WorkspacePage : Page
         if (folderName is not null)
         {
             var folderPath = folder?.DirectoryPath ?? _noteService.CurrentNotebookPath;
-            await _mediator.Send(new CreateFolderCommandRequest(folderPath, folderName));
-            await LoadNotes();
+            var result = await _mediator.Send(new CreateFolderCommandRequest(folderPath, folderName));
+            if (result.Success)
+                await LoadNotes();
+            else
+                Toast.Show(result.ErrorMessage!);
         }
     }
 
@@ -349,8 +370,11 @@ public sealed partial class WorkspacePage : Page
         var newName = await _folderDialogService.ShowRenameFolderDialogAsync(folder.Name, XamlRoot);
         if (newName is not null)
         {
-            await _mediator.Send(new RenameFolderCommandRequest(folder.DirectoryPath, newName));
-            await LoadNotes();
+            var result = await _mediator.Send(new RenameFolderCommandRequest(folder.DirectoryPath, newName));
+            if (result.Success)
+                await LoadNotes();
+            else
+                Toast.Show(result.ErrorMessage!);
         }
     }
 
@@ -358,15 +382,18 @@ public sealed partial class WorkspacePage : Page
     {
         if (!folder.IsEmpty)
         {
-            await _dialogService.ShowErrorAsync("Cannot delete a non-empty folder. Please remove all notes and subfolders first.", XamlRoot);
+            Toast.Show("Cannot delete a non-empty folder.");
             return;
         }
 
         var confirmed = await _folderDialogService.ShowDeleteFolderDialogAsync(folder.Name, XamlRoot);
         if (confirmed)
         {
-            await _mediator.Send(new DeleteFolderCommandRequest(folder.DirectoryPath));
-            await LoadNotes();
+            var result = await _mediator.Send(new DeleteFolderCommandRequest(folder.DirectoryPath));
+            if (result.Success)
+                await LoadNotes();
+            else
+                Toast.Show(result.ErrorMessage!);
         }
     }
 
@@ -375,7 +402,13 @@ public sealed partial class WorkspacePage : Page
         var wasSelected = _selectedNote?.FilePath == e.Note.FilePath;
         var expandedStates = Sidebar.GetFolderExpandedStates();
 
-        await _mediator.Send(new MoveNoteToFolderCommandRequest(e.Note, e.TargetFolder.DirectoryPath));
+        var result = await _mediator.Send(new MoveNoteToFolderCommandRequest(e.Note, e.TargetFolder.DirectoryPath));
+        if (!result.Success)
+        {
+            Toast.Show(result.ErrorMessage!);
+            return;
+        }
+
         await LoadNotes();
 
         Sidebar.RestoreFolderExpandedStates(expandedStates);

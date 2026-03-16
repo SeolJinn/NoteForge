@@ -9,16 +9,20 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
 using NoteForge.Configuration;
+using NoteForge.Interfaces;
 
 namespace NoteForge.Services;
 
-public class OllamaService
+public class OllamaService : IOllamaService, IDisposable
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<OllamaService> _logger;
 
-    public OllamaService()
+    public OllamaService(ILogger<OllamaService> logger)
     {
+        _logger = logger;
         _httpClient = new HttpClient
         {
             BaseAddress = new Uri(OllamaSettings.OllamaUrl),
@@ -96,8 +100,9 @@ public class OllamaService
 
             return embeddingResponse?.Embedding;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
+            _logger.LogWarning(ex, "Failed to generate embedding from Ollama");
             return null;
         }
     }
@@ -115,6 +120,12 @@ public class OllamaService
     {
         [JsonPropertyName("embedding")]
         public float[]? Embedding { get; set; }
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
 

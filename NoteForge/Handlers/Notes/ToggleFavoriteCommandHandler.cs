@@ -1,16 +1,16 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using NoteForge.Interfaces;
 using NoteForge.Models;
-using NoteForge.Services;
 
 namespace NoteForge.Handlers.Notes;
 
-public sealed class ToggleFavoriteCommandHandler(SectionService sectionService) : IRequestHandler<ToggleFavoriteCommandRequest, bool>
+public sealed class ToggleFavoriteCommandHandler(ISectionService sectionService) : IRequestHandler<ToggleFavoriteCommandRequest, bool>
 {
     public ValueTask<bool> Handle(ToggleFavoriteCommandRequest request, CancellationToken cancellationToken)
     {
-        var isFavorite = SectionService.IsFavorite(request.Note.FilePath);
+        var isFavorite = sectionService.IsFavorite(request.Note.FilePath);
 
         if (isFavorite)
         {

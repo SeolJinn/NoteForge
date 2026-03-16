@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using NoteForge.Interfaces;
@@ -7,7 +8,7 @@ using Windows.Storage.Pickers;
 
 namespace NoteForge.Services;
 
-public class DialogService : IDialogService
+public class DialogService(ILogger<DialogService> logger) : IDialogService
 {
     public async Task ShowErrorAsync(string message, XamlRoot xamlRoot)
     {
@@ -45,8 +46,9 @@ public class DialogService : IDialogService
             var folder = await picker.PickSingleFolderAsync();
             return folder?.Path;
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogWarning(ex, "Failed to open folder picker");
             return null;
         }
     }
