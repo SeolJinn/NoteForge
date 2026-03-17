@@ -19,3 +19,7 @@ Thumbs.db
 
 # Environment files
 .env
+
+# Editor build
+editor/node_modules/
+editor/dist/editor-bundle.js

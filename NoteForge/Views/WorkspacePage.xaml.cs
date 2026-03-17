@@ -12,9 +12,7 @@ using NoteForge.Controls;
 using NoteForge.Handlers.AI;
 using NoteForge.Handlers.Folders;
 using NoteForge.Handlers.Notes;
-using NoteForge.Handlers.Preview;
 using NoteForge.Handlers.Workspace;
-using NoteForge.Helpers;
 using NoteForge.Interfaces;
 using NoteForge.Models;
 using NoteForge.Services;
@@ -31,7 +29,6 @@ public sealed partial class WorkspacePage : Page
     private readonly IFolderDialogService _folderDialogService;
     private readonly SidebarCoordinator _sidebarCoordinator;
     private Note? _selectedNote;
-    private AsyncDebounceHelper? _saveDebouncer;
     private CancellationTokenSource? _summaryCts;
     private bool _isLoading;
     private bool _isSyncingTitle;
@@ -53,8 +50,6 @@ public sealed partial class WorkspacePage : Page
 
         _tabManager.ActiveTabChanged += OnActiveTabChanged;
 
-        _saveDebouncer = new AsyncDebounceHelper(DispatcherQueue, TimeSpan.FromMilliseconds(200));
-
         Loaded += WorkspacePage_Loaded;
         Unloaded += WorkspacePage_Unloaded;
     }
@@ -63,7 +58,6 @@ public sealed partial class WorkspacePage : Page
 
     private void WorkspacePage_Unloaded(object sender, RoutedEventArgs e)
     {
-        _saveDebouncer?.Dispose();
         _summaryCts?.Cancel();
         _summaryCts?.Dispose();
         GraphView.Cleanup();
@@ -165,15 +159,15 @@ public sealed partial class WorkspacePage : Page
             _tabManager.OpenTab(selectedNote);
     }
 
-    private void OnMatchingLineSelected(object sender, (Note Note, int LineNumber) args)
+    private async void OnMatchingLineSelected(object sender, (Note Note, int LineNumber) args)
     {
         if (_tabManager.ActiveTab?.FilePath != args.Note.FilePath)
             _tabManager.OpenTab(args.Note);
         else
             SetSelectedNote(args.Note);
 
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low,
-            () => EditorView.NavigateToLine(args.LineNumber));
+        await Task.Delay(100);
+        await EditorView.NavigateToLineAsync(args.LineNumber);
     }
 
     private void OnTabSelected(object sender, Tab tab)
@@ -194,6 +188,20 @@ public sealed partial class WorkspacePage : Page
 
     private async Task HandleActiveTabChangedAsync(Tab? activeTab)
     {
+        if (_selectedNote is not null && EditorView.IsEditorReady)
+        {
+            try
+            {
+                _selectedNote.Text = await EditorView.GetContentAsync(TimeSpan.FromSeconds(1));
+                await _mediator.Send(new SaveNoteCommandRequest(_selectedNote));
+                _tabManager.SetDirty(_selectedNote.FilePath, false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to save outgoing tab content");
+            }
+        }
+
         TabBarControl.SetSelectedItem(activeTab);
         GraphView.Visibility = Visibility.Collapsed;
 
@@ -215,7 +223,7 @@ public sealed partial class WorkspacePage : Page
             _tabManager.CloseTab(activeTab);
     }
 
-    private void UpdateEditorState()
+    private async void UpdateEditorState()
     {
         GraphView.Visibility = Visibility.Collapsed;
 
@@ -225,29 +233,23 @@ public sealed partial class WorkspacePage : Page
 
         if (!showEditor) return;
 
-        _pendingTitleRename = null;
-        _summaryCts?.Cancel();
-        EditorView.HideAiSummary();
-        _isLoading = true;
-        EditorView.SetTitle(_selectedNote!.Filename);
-        EditorView.SetContent(_selectedNote.Text);
-        _isLoading = false;
-        UpdatePreviewAsync();
-    }
-
-    private async void UpdatePreviewAsync()
-    {
-        if (_selectedNote is null || EditorView.GetPreviewColumnWidth() is 0) return;
-
-        await _mediator.Send(new UpdatePreviewCommandRequest(
-            EditorView.GetPreviewWebView(), _selectedNote.Text ?? ""));
-    }
-
-    private void OnTogglePreviewClicked(object sender, EventArgs e)
-    {
-        var isHidden = EditorView.GetPreviewColumnWidth() is 0;
-        EditorView.SetPreviewColumnWidth(isHidden ? 1 : 0);
-        if (isHidden) UpdatePreviewAsync();
+        try
+        {
+            _pendingTitleRename = null;
+            _summaryCts?.Cancel();
+            EditorView.HideAiSummary();
+            _isLoading = true;
+            EditorView.SetTitle(_selectedNote!.Filename);
+            await EditorView.SetContentAsync(_selectedNote.Text);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to update editor state");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
     private void OnNoteTitleTextChanged(object sender, string newTitle)
@@ -302,19 +304,23 @@ public sealed partial class WorkspacePage : Page
         }
     }
 
-    private void OnNoteContentChanged(object sender, string newContent)
+    private async void OnNoteContentChanged(object sender, EventArgs e)
     {
         if (_isLoading || _selectedNote is null) return;
 
         _tabManager.SetDirty(_selectedNote.FilePath, true);
 
-        _saveDebouncer?.Debounce(async () =>
+        var noteToSave = _selectedNote;
+        try
         {
-            _selectedNote.Text = newContent;
-            UpdatePreviewAsync();
-            await _mediator.Send(new SaveNoteCommandRequest(_selectedNote));
-            _tabManager.SetDirty(_selectedNote.FilePath, false);
-        });
+            noteToSave.Text = await EditorView.GetContentAsync();
+            await _mediator.Send(new SaveNoteCommandRequest(noteToSave));
+            _tabManager.SetDirty(noteToSave.FilePath, false);
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogWarning(ex, "Failed to get content for save");
+        }
     }
 
     private void OnNewTabClicked(object sender, EventArgs e) => _tabManager.OpenNewTab();
@@ -440,5 +446,37 @@ public sealed partial class WorkspacePage : Page
     {
         _summaryCts?.Cancel();
         EditorView.HideAiSummary();
+    }
+
+    private async void OnEditorLinkClicked(object sender, string href)
+    {
+        if (href.StartsWith("[[") && href.EndsWith("]]"))
+        {
+            var noteName = href[2..^2];
+            List<Note> allNotes = [.. await _mediator.Send(new GetNotesQueryRequest())];
+            var targetNote = allNotes.FirstOrDefault(n =>
+                n.Filename.Equals(noteName, StringComparison.OrdinalIgnoreCase));
+            if (targetNote is not null)
+                _tabManager.OpenTab(targetNote);
+        }
+        else if (Uri.TryCreate(href, UriKind.Absolute, out var uri))
+        {
+            await Windows.System.Launcher.LaunchUriAsync(uri);
+        }
+    }
+
+    private async void OnEditorSaveRequested(object sender, EventArgs e)
+    {
+        if (_selectedNote is null) return;
+        try
+        {
+            _selectedNote.Text = await EditorView.GetContentAsync();
+            await _mediator.Send(new SaveNoteCommandRequest(_selectedNote));
+            _tabManager.SetDirty(_selectedNote.FilePath, false);
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogWarning(ex, "Failed to save on Ctrl+S");
+        }
     }
 }

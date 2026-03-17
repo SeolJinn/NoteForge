@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+using System;
 using Mediator;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -17,7 +16,6 @@ public partial class App : Application
     public static IServiceProvider Services { get; private set; } = null!;
     public static INoteService NoteService => Services.GetRequiredService<INoteService>();
     public static ITabManager TabManager => Services.GetRequiredService<ITabManager>();
-    public static IMarkdownPreviewService PreviewService => Services.GetRequiredService<IMarkdownPreviewService>();
     public static IDialogService DialogService => Services.GetRequiredService<IDialogService>();
     public static IMediator Mediator => Services.GetRequiredService<IMediator>();
     public static ILoggerFactory LoggerFactory => Services.GetRequiredService<ILoggerFactory>();
@@ -45,7 +43,7 @@ public partial class App : Application
 
         services.AddSingleton<INoteService, NoteService>();
         services.AddSingleton<ITabManager, TabManager>();
-        services.AddSingleton<IMarkdownPreviewService, MarkdownPreviewService>();
+        services.AddTransient<EditorInteropService>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IFolderDialogService, FolderDialogService>();
         services.AddSingleton<IOllamaService, OllamaService>();

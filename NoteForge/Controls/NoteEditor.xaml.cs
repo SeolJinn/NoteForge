@@ -1,10 +1,9 @@
 using System;
-using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
-using Windows.System;
-using NoteForge.Services.Search;
+using NoteForge.Services;
 
 namespace NoteForge.Controls;
 
@@ -12,20 +11,66 @@ public sealed partial class NoteEditor : UserControl
 {
     public event EventHandler<string>? TitleChanged;
     public event EventHandler? TitleUnfocused;
-    public event EventHandler<string>? ContentChanged;
+    public event EventHandler? ContentChanged;
     public event EventHandler? GenerateSummaryRequested;
     public event EventHandler? CloseSummaryRequested;
-    public event EventHandler? TogglePreviewRequested;
+    public event EventHandler<string>? LinkClicked;
+    public event EventHandler? SaveRequested;
 
     private bool _suppressEvents;
-    private readonly ISearchStrategy<string, TextMatch> _textSearchStrategy;
-    private List<TextMatch> _searchMatches = [];
-    private int _currentMatchIndex = -1;
+    private EditorInteropService? _interopService;
+    private bool _initialized;
 
     public NoteEditor()
     {
         InitializeComponent();
-        _textSearchStrategy = new InFileTextSearchStrategy();
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+    }
+
+    private async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        if (_initialized)
+            return;
+        _initialized = true;
+
+        _interopService = App.Services.GetRequiredService<EditorInteropService>();
+        _interopService.ContentChanged += OnInteropContentChanged;
+        _interopService.LinkClicked += OnInteropLinkClicked;
+        _interopService.SaveRequested += OnInteropSaveRequested;
+
+        await _interopService.InitializeAsync(EditorWebView);
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (_interopService is not null)
+        {
+            _interopService.ContentChanged -= OnInteropContentChanged;
+            _interopService.LinkClicked -= OnInteropLinkClicked;
+            _interopService.SaveRequested -= OnInteropSaveRequested;
+            _interopService.Dispose();
+            _interopService = null;
+        }
+        _initialized = false;
+    }
+
+    private void OnInteropContentChanged(object? sender, EventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!_suppressEvents) ContentChanged?.Invoke(this, EventArgs.Empty);
+        });
+    }
+
+    private void OnInteropLinkClicked(object? sender, string href)
+    {
+        DispatcherQueue.TryEnqueue(() => LinkClicked?.Invoke(this, href));
+    }
+
+    private void OnInteropSaveRequested(object? sender, EventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(() => SaveRequested?.Invoke(this, EventArgs.Empty));
     }
 
     public void SetTitle(string title)
@@ -35,11 +80,34 @@ public sealed partial class NoteEditor : UserControl
         _suppressEvents = false;
     }
 
-    public void SetContent(string content)
+    public async Task SetContentAsync(string content)
     {
-        _suppressEvents = true;
-        NoteContentEditor.Text = content;
-        _suppressEvents = false;
+        if (_interopService is null)
+            return;
+        await _interopService.SetContentAsync(content);
+    }
+
+    public bool IsEditorReady => _interopService?.IsReady is true;
+
+    public async Task<string> GetContentAsync(TimeSpan? timeout = null)
+    {
+        if (_interopService is null)
+            return "";
+        return await _interopService.GetContentAsync(timeout);
+    }
+
+    public async Task NavigateToLineAsync(int lineNumber)
+    {
+        if (_interopService is null)
+            return;
+        await _interopService.NavigateToLineAsync(lineNumber);
+    }
+
+    public async Task FocusEditorAsync()
+    {
+        if (_interopService is null)
+            return;
+        await _interopService.FocusAsync();
     }
 
     public void ShowAiSummary(string summary)
@@ -68,62 +136,15 @@ public sealed partial class NoteEditor : UserControl
         GenerateSummaryButton.IsEnabled = enabled;
     }
 
-    public WebView2 GetPreviewWebView()
-    {
-        return PreviewWebView;
-    }
-
-    public void SetPreviewColumnWidth(double width)
-    {
-        PreviewColumn.Width = new GridLength(width, width == 0 ? GridUnitType.Pixel : GridUnitType.Star);
-        PreviewToggleBtn.Content = width is 0 ? "<" : ">";
-    }
-
-    public double GetPreviewColumnWidth()
-    {
-        return PreviewColumn.Width.Value;
-    }
-
-    public void NavigateToLine(int lineNumber)
-    {
-        var text = NoteContentEditor.Text;
-        if (string.IsNullOrEmpty(text) || lineNumber < 1)
-            return;
-
-        var lines = text.Split(['\r', '\n'], StringSplitOptions.None);
-        if (lineNumber > lines.Length)
-            return;
-
-        var position = 0;
-        for (int i = 0; i < lineNumber - 1 && i < lines.Length; i++)
-        {
-            position += lines[i].Length + 1;
-        }
-
-        NoteContentEditor.Focus(FocusState.Programmatic);
-        NoteContentEditor.SelectionStart = position;
-        NoteContentEditor.SelectionLength = lines[lineNumber - 1].Length;
-    }
-
     private void OnTitleTextChanged(object sender, TextChangedEventArgs e)
     {
         if (!_suppressEvents)
-        {
             TitleChanged?.Invoke(this, NoteTitleEntry.Text);
-        }
     }
 
     private void OnTitleUnfocused(object sender, RoutedEventArgs e)
     {
         TitleUnfocused?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnContentTextChanged(object sender, TextChangedEventArgs e)
-    {
-        if (!_suppressEvents)
-        {
-            ContentChanged?.Invoke(this, NoteContentEditor.Text);
-        }
     }
 
     private void OnGenerateSummaryClicked(object sender, RoutedEventArgs e)
@@ -134,151 +155,5 @@ public sealed partial class NoteEditor : UserControl
     private void OnCloseSummaryClicked(object sender, RoutedEventArgs e)
     {
         CloseSummaryRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnTogglePreviewClicked(object sender, RoutedEventArgs e)
-    {
-        TogglePreviewRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnEditorKeyDown(object sender, KeyRoutedEventArgs e)
-    {
-        if (e.Key is VirtualKey.F &&
-            (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control) & Windows.UI.Core.CoreVirtualKeyStates.Down) is not 0)
-        {
-            e.Handled = true;
-            ShowSearchBar();
-        }
-    }
-
-    private void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
-    {
-        if (e.Key is VirtualKey.Escape)
-        {
-            e.Handled = true;
-            HideSearchBar();
-        }
-        else if (e.Key is VirtualKey.Enter)
-        {
-            e.Handled = true;
-            var isShiftPressed = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) is not 0;
-            if (isShiftPressed)
-            {
-                NavigateToPreviousMatch();
-            }
-            else
-            {
-                NavigateToNextMatch();
-            }
-        }
-        else if (e.Key is VirtualKey.Down)
-        {
-            e.Handled = true;
-            NavigateToNextMatch();
-        }
-        else if (e.Key is VirtualKey.Up)
-        {
-            e.Handled = true;
-            NavigateToPreviousMatch();
-        }
-    }
-
-    private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
-    {
-        PerformSearch();
-    }
-
-    private void OnPreviousMatchClicked(object sender, RoutedEventArgs e)
-    {
-        NavigateToPreviousMatch();
-    }
-
-    private void OnNextMatchClicked(object sender, RoutedEventArgs e)
-    {
-        NavigateToNextMatch();
-    }
-
-    private void OnCloseSearchClicked(object sender, RoutedEventArgs e)
-    {
-        HideSearchBar();
-    }
-
-    private void ShowSearchBar()
-    {
-        SearchBar.Visibility = Visibility.Visible;
-        SearchBox.Focus(FocusState.Programmatic);
-    }
-
-    private void HideSearchBar()
-    {
-        SearchBar.Visibility = Visibility.Collapsed;
-        _searchMatches.Clear();
-        _currentMatchIndex = -1;
-        NoteContentEditor.Focus(FocusState.Programmatic);
-    }
-
-    private void PerformSearch()
-    {
-        _searchMatches.Clear();
-        _currentMatchIndex = -1;
-
-        var searchText = SearchBox.Text;
-        if (string.IsNullOrEmpty(searchText))
-        {
-            return;
-        }
-
-        var content = NoteContentEditor.Text;
-        if (string.IsNullOrEmpty(content))
-        {
-            return;
-        }
-
-        _searchMatches = [.. _textSearchStrategy.Search(content, searchText)];
-
-        if (_searchMatches.Count is not 0)
-        {
-            _currentMatchIndex = 0;
-        }
-    }
-
-    private void NavigateToNextMatch()
-    {
-        if (_searchMatches.Count is 0)
-        {
-            return;
-        }
-
-        _currentMatchIndex = (_currentMatchIndex + 1) % _searchMatches.Count;
-        HighlightCurrentMatch();
-    }
-
-    private void NavigateToPreviousMatch()
-    {
-        if (_searchMatches.Count is 0)
-        {
-            return;
-        }
-
-        _currentMatchIndex--;
-        if (_currentMatchIndex < 0)
-        {
-            _currentMatchIndex = _searchMatches.Count - 1;
-        }
-        HighlightCurrentMatch();
-    }
-
-    private void HighlightCurrentMatch()
-    {
-        if (_currentMatchIndex < 0 || _currentMatchIndex >= _searchMatches.Count)
-        {
-            return;
-        }
-
-        var match = _searchMatches[_currentMatchIndex];
-
-        NoteContentEditor.SelectionStart = match.Position;
-        NoteContentEditor.SelectionLength = match.Length;
-        NoteContentEditor.Focus(FocusState.Programmatic);
     }
 }

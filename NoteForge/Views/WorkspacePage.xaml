@@ -173,7 +173,8 @@
                                    ContentChanged="OnNoteContentChanged"
                                    GenerateSummaryRequested="OnGenerateSummaryClicked"
                                    CloseSummaryRequested="OnCloseSummaryClicked"
-                                   TogglePreviewRequested="OnTogglePreviewClicked"/>
+                                   LinkClicked="OnEditorLinkClicked"
+                                   SaveRequested="OnEditorSaveRequested"/>
 
                 <!-- Graph View -->
                 <controls:GraphViewControl x:Name="GraphView"
