@@ -1,7 +1,7 @@
 import { EditorView, keymap } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
 import { markdown, codeLanguages } from "@codemirror/lang-markdown";
-import { Strikethrough } from "@lezer/markdown";
+import { Strikethrough, TaskList } from "@lezer/markdown";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
@@ -119,7 +119,7 @@ try {
     return null;
   }
 
-  let mdExtensions = [Strikethrough];
+  let mdExtensions = [Strikethrough, TaskList];
   try {
     mdExtensions.push(WikiLink);
   } catch (e) {

@@ -2,6 +2,61 @@ import { Decoration, ViewPlugin, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { RangeSet } from "@codemirror/state";
 
+class CheckboxWidget extends WidgetType {
+  constructor(checked) {
+    super();
+    this.checked = checked;
+  }
+  toDOM() {
+    const span = document.createElement("span");
+    span.className = this.checked ? "cm-task-checkbox cm-task-checked" : "cm-task-checkbox cm-task-unchecked";
+    span.textContent = this.checked ? "✓" : "";
+    return span;
+  }
+  eq(other) {
+    return this.checked === other.checked;
+  }
+}
+
+class HorizontalRuleWidget extends WidgetType {
+  toDOM() {
+    const hr = document.createElement("hr");
+    hr.className = "cm-hr";
+    return hr;
+  }
+  eq() {
+    return true;
+  }
+}
+
+class ImageWidget extends WidgetType {
+  constructor(src, alt) {
+    super();
+    this.src = src;
+    this.alt = alt;
+  }
+  toDOM() {
+    const container = document.createElement("div");
+    container.className = "cm-image-container";
+    const img = document.createElement("img");
+    img.className = "cm-image";
+    img.src = this.src;
+    img.alt = this.alt;
+    img.onerror = () => {
+      container.innerHTML = "";
+      const fallback = document.createElement("span");
+      fallback.className = "cm-image-error";
+      fallback.textContent = `Image not found: ${this.alt || this.src}`;
+      container.appendChild(fallback);
+    };
+    container.appendChild(img);
+    return container;
+  }
+  eq(other) {
+    return this.src === other.src && this.alt === other.alt;
+  }
+}
+
 class BulletWidget extends WidgetType {
   toDOM() {
     const span = document.createElement("span");
@@ -243,20 +298,102 @@ function buildDecorations(view) {
         }
 
         case "ListMark": {
-          const marker = view.state.sliceDoc(node.from, node.to).trim();
-          if (marker === "-" || marker === "*" || marker === "+") {
+          const lineText = view.state.doc.lineAt(node.from).text;
+          const isTaskLine = /^\s*[-*+]\s+\[[ xX]\]/.test(lineText);
+          if (isTaskLine) {
+            decorations.push({
+              from: node.from,
+              to: node.to + 1,
+              decoration: Decoration.replace({}),
+            });
+          } else {
+            const marker = view.state.sliceDoc(node.from, node.to).trim();
+            if (marker === "-" || marker === "*" || marker === "+") {
+              decorations.push({
+                from: node.from,
+                to: node.to,
+                decoration: Decoration.replace({
+                  widget: new BulletWidget(),
+                }),
+              });
+            } else {
+              decorations.push({
+                from: node.from,
+                to: node.to,
+                decoration: Decoration.mark({ class: "cm-list-bullet" }),
+              });
+            }
+          }
+          break;
+        }
+
+        case "Blockquote": {
+          const firstLine = view.state.doc.lineAt(node.from);
+          const lastLine = view.state.doc.lineAt(node.to);
+          for (let ln = firstLine.number; ln <= lastLine.number; ln++) {
+            const line = view.state.doc.line(ln);
+            decorations.push({
+              from: line.from,
+              to: line.from,
+              decoration: Decoration.line({ class: "cm-blockquote-line" }),
+            });
+            const lineText = view.state.sliceDoc(line.from, line.to);
+            const match = lineText.match(/^(\s*>\s?)/);
+            if (match) {
+              decorations.push({
+                from: line.from,
+                to: line.from + match[1].length,
+                decoration: Decoration.replace({}),
+              });
+            }
+          }
+          break;
+        }
+
+        case "HorizontalRule": {
+          decorations.push({
+            from: node.from,
+            to: node.to,
+            decoration: Decoration.replace({
+              widget: new HorizontalRuleWidget(),
+            }),
+          });
+          break;
+        }
+
+        case "TaskMarker": {
+          const text = view.state.sliceDoc(node.from, node.to);
+          const isChecked = text.includes("x") || text.includes("X");
+          decorations.push({
+            from: node.from,
+            to: node.to,
+            decoration: Decoration.replace({
+              widget: new CheckboxWidget(isChecked),
+            }),
+          });
+          if (isChecked) {
+            const taskLine = view.state.doc.lineAt(node.from);
+            decorations.push({
+              from: node.to,
+              to: taskLine.to,
+              decoration: Decoration.mark({ class: "cm-task-completed" }),
+            });
+          }
+          break;
+        }
+
+        case "Image": {
+          const url = node.node.getChild("URL");
+          const altText = node.node.getChild("LinkLabel");
+          if (url) {
+            const src = view.state.sliceDoc(url.from, url.to);
+            const alt = altText ? view.state.sliceDoc(altText.from + 1, altText.to - 1) : "";
             decorations.push({
               from: node.from,
               to: node.to,
               decoration: Decoration.replace({
-                widget: new BulletWidget(),
+                widget: new ImageWidget(src, alt),
               }),
-            });
-          } else {
-            decorations.push({
-              from: node.from,
-              to: node.to,
-              decoration: Decoration.mark({ class: "cm-list-bullet" }),
             });
           }
           break;
