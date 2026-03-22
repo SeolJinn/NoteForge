@@ -151,4 +151,66 @@ export const noteforgeTheme = EditorView.theme({
   ".cm-searchMatch-selected": {
     backgroundColor: "rgba(255, 200, 0, 0.6)",
   },
+  ".cm-table-widget": {
+    borderCollapse: "collapse",
+    width: "auto",
+    padding: "8px 0",
+    fontSize: "0.95em",
+    fontFamily: "'Segoe UI', system-ui, sans-serif",
+  },
+  ".cm-table-widget th": {
+    backgroundColor: "color-mix(in srgb, var(--editor-bg) 60%, var(--editor-fg) 40%)",
+    padding: "6px 12px",
+    border: "1px solid var(--border-color)",
+    fontWeight: "600",
+    color: "var(--heading-color)",
+  },
+  ".cm-table-widget td": {
+    padding: "6px 12px",
+    border: "1px solid var(--border-color)",
+    backgroundColor: "color-mix(in srgb, var(--editor-bg) 85%, var(--editor-fg) 15%)",
+  },
+  ".cm-math-inline": {
+    backgroundColor: "color-mix(in srgb, var(--code-bg) 80%, transparent)",
+    padding: "1px 3px",
+    borderRadius: "3px",
+    verticalAlign: "baseline",
+  },
+  ".cm-math-block": {
+    display: "flex",
+    justifyContent: "center",
+    padding: "20px 0",
+    backgroundColor: "color-mix(in srgb, var(--code-bg) 50%, transparent)",
+    borderRadius: "6px",
+  },
+  ".cm-footnote-ref": {
+    color: "var(--link-color)",
+    cursor: "pointer",
+    fontSize: "0.8em",
+    verticalAlign: "super",
+    lineHeight: "0",
+    padding: "0 1px",
+  },
+  ".cm-footnote-ref:hover": {
+    backgroundColor: "color-mix(in srgb, var(--link-color) 20%, transparent)",
+    borderRadius: "2px",
+  },
+  ".cm-footnote-def": {
+    color: "var(--link-color)",
+    fontSize: "0.85em",
+  },
+  ".cm-footnote-def-text": {
+    borderLeft: "2px solid var(--border-color)",
+    paddingLeft: "8px",
+    opacity: "0.9",
+  },
+  ".cm-footnote-backlink": {
+    color: "var(--link-color)",
+    cursor: "pointer",
+    fontSize: "0.8em",
+    marginLeft: "4px",
+  },
+  ".cm-footnote-backlink:hover": {
+    textDecoration: "underline",
+  },
 });

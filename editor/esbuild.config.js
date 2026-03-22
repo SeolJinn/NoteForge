@@ -6,10 +6,20 @@ await build({
   bundle: true,
   minify: true,
   format: "iife",
-  outfile: "dist/editor-bundle.js",
+  outdir: "dist",
+  loader: {
+    ".woff2": "empty",
+    ".woff": "empty",
+    ".ttf": "empty",
+  },
 });
 
-const js = readFileSync("dist/editor-bundle.js", "utf8").replaceAll("</script>", "<\\/script>");
+const js = readFileSync("dist/editor.js", "utf8").replaceAll("</script>", "<\\/script>");
+let katexCss = readFileSync("dist/editor.css", "utf8");
+
+// Strip @font-face blocks to keep the HTML under WebView2's 2MB NavigateToString limit.
+// KaTeX renders fine in Chromium (WebView2) using system math fonts.
+katexCss = katexCss.replace(/@font-face\s*\{[^}]*\}/g, "");
 
 const output = `<!DOCTYPE html>
 <html>
@@ -17,6 +27,7 @@ const output = `<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+${katexCss}
   :root {
     --editor-bg: #1e1e1e;
     --editor-fg: #d4d4d4;

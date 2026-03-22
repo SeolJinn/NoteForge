@@ -23,24 +23,21 @@ public sealed partial class GraphViewControl : UserControl
 
     private readonly IMediator _mediator;
     private readonly ILogger<GraphViewControl> _logger;
+    private readonly GraphPhysicsSimulator _simulator = new();
     private GraphData _graphData = new();
     private GraphSettings _settings = new();
     private readonly Dictionary<GraphNode, Ellipse> _nodeVisuals = [];
     private readonly Dictionary<GraphEdge, Line> _edgeVisuals = [];
     private readonly List<(INotifyPropertyChanged Source, PropertyChangedEventHandler Handler)> _propertyChangedSubscriptions = [];
     private GraphNode? _draggedNode;
-    private bool _isSimulationRunning;
-    private DispatcherTimer? _simulationTimer;
     private const double NodeRadius = 8.0;
-    private const double SimulationDamping = 0.8;
-    private const double DefaultCanvasCenter = 400.0;
-    private const double DefaultSpreadRadius = 240.0;
 
     public GraphViewControl()
     {
         InitializeComponent();
         _mediator = App.Mediator;
         _logger = App.Services.GetRequiredService<ILogger<GraphViewControl>>();
+        _simulator.Tick += OnSimulatorTick;
 
         SemanticThresholdSlider.ValueChanged += (s, e) =>
         {
@@ -64,9 +61,11 @@ public sealed partial class GraphViewControl : UserControl
             UpdateSettingsFromUI();
             _graphData = await _mediator.Send(new BuildGraphQueryRequest(notes, _settings));
 
-            InitializeNodePositions();
+            _simulator.Configure(_graphData, _settings);
+            _simulator.UpdateCanvasSize(GraphCanvas.ActualWidth, GraphCanvas.ActualHeight);
+            _simulator.InitializeNodePositions(GraphCanvas.ActualWidth, GraphCanvas.ActualHeight);
             RenderGraph();
-            StartPhysicsSimulation();
+            _simulator.Start();
         }
         catch (Exception ex)
         {
@@ -78,30 +77,9 @@ public sealed partial class GraphViewControl : UserControl
         }
     }
 
-    private void InitializeNodePositions()
+    private void OnSimulatorTick(object? sender, EventArgs e)
     {
-        var random = new Random();
-        var centerX = GraphCanvas.ActualWidth / 2;
-        var centerY = GraphCanvas.ActualHeight / 2;
-        var spreadRadius = Math.Min(centerX, centerY) * 0.6;
-
-        if (centerX is 0 || centerY is 0)
-        {
-            centerX = DefaultCanvasCenter;
-            centerY = DefaultCanvasCenter;
-            spreadRadius = DefaultSpreadRadius;
-        }
-
-        foreach (var node in _graphData.Nodes)
-        {
-            var angle = random.NextDouble() * 2 * Math.PI;
-            var distance = random.NextDouble() * spreadRadius;
-
-            node.X = centerX + Math.Cos(angle) * distance;
-            node.Y = centerY + Math.Sin(angle) * distance;
-            node.VelocityX = 0;
-            node.VelocityY = 0;
-        }
+        UpdateVisuals();
     }
 
     private void UnsubscribePropertyChangedHandlers()
@@ -195,6 +173,7 @@ public sealed partial class GraphViewControl : UserControl
         {
             _draggedNode = node;
             node.IsDragging = true;
+            _simulator.SetDragState(true);
             e.Handled = true;
         };
 
@@ -239,119 +218,6 @@ public sealed partial class GraphViewControl : UserControl
         return textBlock;
     }
 
-    private void StartPhysicsSimulation()
-    {
-        if (_isSimulationRunning)
-            return;
-
-        _isSimulationRunning = true;
-        _simulationTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(16)
-        };
-        _simulationTimer.Tick += OnSimulationTick;
-        _simulationTimer.Start();
-    }
-
-    private void StopPhysicsSimulation()
-    {
-        _isSimulationRunning = false;
-        _simulationTimer?.Stop();
-    }
-
-    private void OnSimulationTick(object? sender, object e)
-    {
-        ApplyForces();
-        UpdatePositions();
-        UpdateVisuals();
-
-        var totalEnergy = _graphData.Nodes.Sum(n =>
-            Math.Sqrt(n.VelocityX * n.VelocityX + n.VelocityY * n.VelocityY));
-
-        if (totalEnergy < 0.5 && _draggedNode is null)
-        {
-            StopPhysicsSimulation();
-        }
-    }
-
-    private void ApplyForces()
-    {
-        var centerX = GraphCanvas.ActualWidth / 2;
-        var centerY = GraphCanvas.ActualHeight / 2;
-
-        if (centerX is 0 || centerY is 0)
-        {
-            centerX = DefaultCanvasCenter;
-            centerY = DefaultCanvasCenter;
-        }
-
-        foreach (var node in _graphData.Nodes)
-        {
-            if (node.IsDragging)
-                continue;
-
-            node.VelocityX = 0;
-            node.VelocityY = 0;
-
-            foreach (var other in _graphData.Nodes)
-            {
-                if (node == other)
-                    continue;
-
-                var dx = node.X - other.X;
-                var dy = node.Y - other.Y;
-                var distanceSquared = Math.Max(dx * dx + dy * dy, 1);
-                var repulsionForce = _settings.RepulsionStrength / distanceSquared;
-
-                node.VelocityX += dx * repulsionForce;
-                node.VelocityY += dy * repulsionForce;
-            }
-
-            foreach (var edge in _graphData.Edges)
-            {
-                GraphNode? connectedNode = null;
-
-                if (edge.Source == node)
-                    connectedNode = edge.Target;
-                else if (edge.Target == node)
-                    connectedNode = edge.Source;
-
-                if (connectedNode is not null && edge.IsVisible)
-                {
-                    var dx = connectedNode.X - node.X;
-                    var dy = connectedNode.Y - node.Y;
-                    var attractionForce = _settings.AttractionStrength * edge.Strength;
-
-                    node.VelocityX += dx * attractionForce;
-                    node.VelocityY += dy * attractionForce;
-                }
-            }
-
-            var centerDx = centerX - node.X;
-            var centerDy = centerY - node.Y;
-            node.VelocityX += centerDx * _settings.CenterGravity;
-            node.VelocityY += centerDy * _settings.CenterGravity;
-        }
-    }
-
-    private void UpdatePositions()
-    {
-        var maxX = GraphCanvas.ActualWidth > 0 ? GraphCanvas.ActualWidth - NodeRadius : 800;
-        var maxY = GraphCanvas.ActualHeight > 0 ? GraphCanvas.ActualHeight - NodeRadius : 600;
-
-        foreach (var node in _graphData.Nodes)
-        {
-            if (node.IsDragging)
-                continue;
-
-            node.X += node.VelocityX * SimulationDamping;
-            node.Y += node.VelocityY * SimulationDamping;
-
-            node.X = Math.Clamp(node.X, NodeRadius, maxX);
-            node.Y = Math.Clamp(node.Y, NodeRadius, maxY);
-        }
-    }
-
     private void UpdateVisuals()
     {
         foreach (var (node, ellipse) in _nodeVisuals)
@@ -377,7 +243,7 @@ public sealed partial class GraphViewControl : UserControl
             _draggedNode.X = position.X;
             _draggedNode.Y = position.Y;
 
-            if (!_isSimulationRunning)
+            if (!_simulator.IsRunning)
                 UpdateVisuals();
         }
     }
@@ -388,12 +254,15 @@ public sealed partial class GraphViewControl : UserControl
         {
             _draggedNode.IsDragging = false;
             _draggedNode = null;
-            StartPhysicsSimulation();
+            _simulator.SetDragState(false);
+            _simulator.Start();
         }
     }
 
     private void OnCanvasSizeChanged(object sender, SizeChangedEventArgs e)
     {
+        _simulator.UpdateCanvasSize(e.NewSize.Width, e.NewSize.Height);
+
         if (_graphData.Nodes.Count > 0 && e.PreviousSize.Width > 0 && e.PreviousSize.Height > 0)
         {
             var scaleX = e.NewSize.Width / e.PreviousSize.Width;
@@ -435,13 +304,14 @@ public sealed partial class GraphViewControl : UserControl
 
     private void OnResetLayoutClicked(object sender, RoutedEventArgs e)
     {
-        InitializeNodePositions();
-        StartPhysicsSimulation();
+        _simulator.InitializeNodePositions(GraphCanvas.ActualWidth, GraphCanvas.ActualHeight);
+        _simulator.Start();
     }
 
     public void Cleanup()
     {
-        StopPhysicsSimulation();
+        _simulator.Tick -= OnSimulatorTick;
+        _simulator.Stop();
         UnsubscribePropertyChangedHandlers();
         _graphData.Clear();
         _nodeVisuals.Clear();
