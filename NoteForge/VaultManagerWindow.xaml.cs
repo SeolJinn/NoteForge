@@ -24,7 +24,8 @@ public sealed partial class VaultManagerWindow : Window
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
         appWindow.Resize(new Windows.Graphics.SizeInt32(500, 600));
-        
+        appWindow.SetIcon("Assets/app.ico");
+
         SetRoundedCorners(hwnd);
         
         RootFrame.Navigated += OnFrameNavigated;

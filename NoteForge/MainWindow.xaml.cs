@@ -1,15 +1,14 @@
 using Microsoft.UI.Xaml;
 using NoteForge.Views;
 
-namespace NoteForge
+namespace NoteForge;
+
+public sealed partial class MainWindow : Window
 {
-    public sealed partial class MainWindow : Window
+    public MainWindow()
     {
-        public MainWindow()
-        {
-            this.InitializeComponent();
-            
-            RootFrame.Navigate(typeof(VaultPage));
-        }
+        this.InitializeComponent();
+        AppWindow.SetIcon("Assets/app.ico");
+        RootFrame.Navigate(typeof(VaultPage));
     }
 }
