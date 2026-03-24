@@ -20,6 +20,8 @@ public sealed partial class FolderView : UserControl
     public event EventHandler<Folder>? DeleteFolderRequested;
     public event EventHandler<(Note Note, Folder TargetFolder)>? NoteMovedToFolder;
     public event EventHandler<Note>? ToggleFavoriteRequested;
+    public event EventHandler<(Note Note, string NewName)>? RenameNoteRequested;
+    public event EventHandler<Note>? DeleteNoteRequested;
 
     public FolderView(Folder folder, Folder? rootFolder = null)
     {
@@ -42,6 +44,8 @@ public sealed partial class FolderView : UserControl
             subfolderView.DeleteFolderRequested += (s, f) => DeleteFolderRequested?.Invoke(this, f);
             subfolderView.NoteMovedToFolder += (s, e) => NoteMovedToFolder?.Invoke(this, e);
             subfolderView.ToggleFavoriteRequested += (s, note) => ToggleFavoriteRequested?.Invoke(this, note);
+            subfolderView.RenameNoteRequested += (s, data) => RenameNoteRequested?.Invoke(this, data);
+            subfolderView.DeleteNoteRequested += (s, note) => DeleteNoteRequested?.Invoke(this, note);
 
             SubfoldersControl.Children.Add(subfolderView);
         }
@@ -193,6 +197,164 @@ public sealed partial class FolderView : UserControl
         if (sender is MenuFlyoutItem item && item.Tag is Note note)
         {
             ToggleFavoriteRequested?.Invoke(this, note);
+        }
+    }
+
+    private void OnRenameNoteClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is Note note)
+        {
+            StartInlineRename(note);
+        }
+    }
+
+    private void StartInlineRename(Note note)
+    {
+        var border = FindNoteBorder(note);
+        if (border is null) return;
+
+        var textBlock = border.Child as TextBlock;
+        if (textBlock is null) return;
+
+        var originalName = note.Filename;
+        var originalPadding = border.Padding;
+        var borderWidth = 1.5;
+
+        border.BorderBrush = (Brush)Application.Current.Resources["Primary"];
+        border.BorderThickness = new Thickness(borderWidth);
+        border.Padding = new Thickness(
+            originalPadding.Left - borderWidth,
+            originalPadding.Top - borderWidth,
+            originalPadding.Right - borderWidth,
+            originalPadding.Bottom - borderWidth);
+
+        var textBox = new TextBox
+        {
+            Text = System.IO.Path.GetFileNameWithoutExtension(originalName),
+            FontSize = 14,
+            Foreground = (Brush)Application.Current.Resources["TextPrimary"],
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(0),
+            MinHeight = 0,
+            MinWidth = 0,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        textBox.Resources["TextControlThemeMinHeight"] = 0d;
+        textBox.Resources["TextControlThemePadding"] = new Thickness(0);
+        textBox.Resources["DeleteButtonVisibility"] = Visibility.Collapsed;
+        textBox.Resources["TextControlBackgroundPointerOver"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        textBox.Resources["TextControlBackgroundFocused"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        textBox.Resources["TextControlBorderBrushPointerOver"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        textBox.Resources["TextControlBorderBrushFocused"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+        border.Child = textBox;
+
+        var committed = false;
+
+        void RestoreBorder()
+        {
+            border.Child = textBlock;
+            border.BorderBrush = null;
+            border.BorderThickness = new Thickness(0);
+            border.Padding = originalPadding;
+        }
+
+        void CommitRename()
+        {
+            if (committed) return;
+            committed = true;
+
+            var newName = textBox.Text?.Trim();
+            RestoreBorder();
+
+            if (!string.IsNullOrWhiteSpace(newName) && newName != System.IO.Path.GetFileNameWithoutExtension(originalName))
+                RenameNoteRequested?.Invoke(this, (note, newName));
+            else if (note.IsSelected)
+                NoteSelected?.Invoke(this, note);
+        }
+
+        void CancelRename()
+        {
+            if (committed) return;
+            committed = true;
+            RestoreBorder();
+
+            if (note.IsSelected)
+                NoteSelected?.Invoke(this, note);
+        }
+
+        textBox.LostFocus += (s, ev) => CommitRename();
+        textBox.PreviewKeyDown += (s, ev) =>
+        {
+            if (ev.Key is Windows.System.VirtualKey.Enter)
+            {
+                CommitRename();
+                ev.Handled = true;
+            }
+            else if (ev.Key is Windows.System.VirtualKey.Escape)
+            {
+                CancelRename();
+                ev.Handled = true;
+            }
+        };
+
+        textBox.SelectAll();
+        textBox.Focus(FocusState.Programmatic);
+    }
+
+    private Border? FindNoteBorder(Note note)
+    {
+        var itemsControl = FindItemsControl();
+        if (itemsControl is null) return null;
+
+        foreach (var item in itemsControl.Items)
+        {
+            if (item is Note n && n.FilePath == note.FilePath)
+            {
+                var container = itemsControl.ContainerFromItem(item);
+                if (container is not null)
+                    return FindChildBorder(container);
+            }
+        }
+        return null;
+    }
+
+    private ItemsControl? FindItemsControl()
+    {
+        return FindChild<ItemsControl>(this);
+    }
+
+    private static Border? FindChildBorder(DependencyObject parent)
+    {
+        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is Border b && b.DataContext is Note)
+                return b;
+            var found = FindChildBorder(child);
+            if (found is not null) return found;
+        }
+        return null;
+    }
+
+    private static T? FindChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is T t) return t;
+            var found = FindChild<T>(child);
+            if (found is not null) return found;
+        }
+        return null;
+    }
+
+    private void OnDeleteNoteClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item && item.Tag is Note note)
+        {
+            DeleteNoteRequested?.Invoke(this, note);
         }
     }
 

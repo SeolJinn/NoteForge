@@ -19,7 +19,7 @@
             <SolidColorBrush x:Key="TextPrimary" Color="#DADADA"/>
             <SolidColorBrush x:Key="TextSecondary" Color="#B3B3B3"/>
             <SolidColorBrush x:Key="Separator" Color="#333333"/>
-            <SolidColorBrush x:Key="Primary" Color="#007ACC"/>
+            <SolidColorBrush x:Key="Primary" Color="#4fc3f7"/>
             <SolidColorBrush x:Key="Gray500" Color="#808080"/>
             <SolidColorBrush x:Key="Gray600" Color="#606060"/>
 
@@ -40,7 +40,7 @@
             <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent" />
             <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent" />
             <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent" />
-            <SolidColorBrush x:Key="TextControlSelectionHighlightColor" Color="#007ACC" Opacity="0.5" />
+            <SolidColorBrush x:Key="TextControlSelectionHighlightColor" Color="#4fc3f7" Opacity="0.5" />
             <SolidColorBrush x:Key="TextControlSelectionForegroundBrush" Color="#FFFFFF" />
             <SolidColorBrush x:Key="TextControlPlaceholderForeground" Color="#B3B3B3" />
             <SolidColorBrush x:Key="TextControlPlaceholderForegroundPointerOver" Color="#B3B3B3" />
@@ -66,7 +66,7 @@
             </Style>
 
             <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-                <Setter Property="Background" Value="#007acc"/>
+                <Setter Property="Background" Value="#4fc3f7"/>
                 <Setter Property="Foreground" Value="#FFFFFF"/>
                 <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="CornerRadius" Value="8"/>
@@ -82,9 +82,9 @@
             <CornerRadius x:Key="ControlCornerRadius">8</CornerRadius>
             <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>
 
-            <SolidColorBrush x:Key="AccentButtonBackground" Color="#007acc"/>
-            <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#0088dd"/>
-            <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#006bb3"/>
+            <SolidColorBrush x:Key="AccentButtonBackground" Color="#4fc3f7"/>
+            <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#6fcef9"/>
+            <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#3ab0de"/>
             <SolidColorBrush x:Key="AccentButtonBackgroundDisabled" Color="#404040"/>
             <SolidColorBrush x:Key="AccentButtonForeground" Color="#FFFFFF"/>
             <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="#FFFFFF"/>

@@ -22,11 +22,15 @@ public sealed partial class WorkspaceSidebar : UserControl
     public event EventHandler<(Note Note, int LineNumber)>? MatchingLineSelected;
     public event EventHandler<VaultInfo>? VaultSelected;
     public event EventHandler? ManageVaultsRequested;
+    public event EventHandler? CreateNoteRequested;
     public event EventHandler<Folder?>? CreateFolderRequested;
     public event EventHandler<Folder>? RenameFolderRequested;
     public event EventHandler<Folder>? DeleteFolderRequested;
     public event EventHandler<(Note Note, Folder TargetFolder)>? NoteMovedToFolder;
+    public event EventHandler? SettingsRequested;
     public event EventHandler<Note>? ToggleFavoriteRequested;
+    public event EventHandler<(Note Note, string NewName)>? RenameNoteRequested;
+    public event EventHandler<Note>? DeleteNoteRequested;
 
     private readonly FolderTreeService _folderTreeService;
     private readonly ISemanticSearchStrategy _searchStrategy;
@@ -77,6 +81,8 @@ public sealed partial class WorkspaceSidebar : UserControl
         folderView.DeleteFolderRequested += (s, f) => DeleteFolderRequested?.Invoke(this, f);
         folderView.NoteMovedToFolder += (s, data) => NoteMovedToFolder?.Invoke(this, data);
         folderView.ToggleFavoriteRequested += (s, note) => ToggleFavoriteRequested?.Invoke(this, note);
+        folderView.RenameNoteRequested += (s, data) => RenameNoteRequested?.Invoke(this, data);
+        folderView.DeleteNoteRequested += (s, note) => DeleteNoteRequested?.Invoke(this, note);
         return folderView;
     }
 
@@ -103,9 +109,15 @@ public sealed partial class WorkspaceSidebar : UserControl
             TextTrimming = TextTrimming.CharacterEllipsis
         };
 
-        var menuFlyout = new MenuFlyout();
-        menuFlyout.Items.Add(CreateFlyoutItem("Toggle favorite", (s, e) 
+        var menuFlyout = CreateStyledMenuFlyout();
+        menuFlyout.Items.Add(CreateFlyoutItem("Toggle favorite", "\uE734", (s, e)
             => ToggleFavoriteRequested?.Invoke(this, note)));
+        menuFlyout.Items.Add(CreateFlyoutItem("Rename note", "\uE8AC", (s, e)
+            => StartInlineRename(border, note)));
+        var deleteItem = CreateFlyoutItem("Delete note", "\uE74D", (s, e)
+            => DeleteNoteRequested?.Invoke(this, note));
+        deleteItem.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 251, 70, 76));
+        menuFlyout.Items.Add(deleteItem);
 
         border.ContextFlyout = menuFlyout;
         border.Child = textBlock;
@@ -113,12 +125,25 @@ public sealed partial class WorkspaceSidebar : UserControl
         return border;
     }
 
-    private MenuFlyoutItem CreateFlyoutItem(string text, RoutedEventHandler handler)
+    private static MenuFlyout CreateStyledMenuFlyout()
+    {
+        var flyout = new MenuFlyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.RightEdgeAlignedTop };
+        flyout.MenuFlyoutPresenterStyle = new Style(typeof(MenuFlyoutPresenter));
+        flyout.MenuFlyoutPresenterStyle.Setters.Add(new Setter(MenuFlyoutPresenter.BackgroundProperty, Application.Current.Resources["SideBar"]));
+        flyout.MenuFlyoutPresenterStyle.Setters.Add(new Setter(MenuFlyoutPresenter.BorderBrushProperty, Application.Current.Resources["Separator"]));
+        flyout.MenuFlyoutPresenterStyle.Setters.Add(new Setter(MenuFlyoutPresenter.BorderThicknessProperty, new Thickness(1)));
+        flyout.MenuFlyoutPresenterStyle.Setters.Add(new Setter(MenuFlyoutPresenter.CornerRadiusProperty, new CornerRadius(8)));
+        flyout.MenuFlyoutPresenterStyle.Setters.Add(new Setter(MenuFlyoutPresenter.PaddingProperty, new Thickness(4)));
+        return flyout;
+    }
+
+    private static MenuFlyoutItem CreateFlyoutItem(string text, string iconGlyph, RoutedEventHandler handler)
     {
         var item = new MenuFlyoutItem
         {
             Text = text,
-            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextPrimary"]
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextPrimary"],
+            Icon = new FontIcon { Glyph = iconGlyph, FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe MDL2 Assets") }
         };
         item.Click += handler;
         return item;
@@ -234,6 +259,16 @@ public sealed partial class WorkspaceSidebar : UserControl
         ManageVaultsRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    private void OnSettingsClicked(object sender, RoutedEventArgs e)
+    {
+        SettingsRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnCreateNoteClicked(object sender, RoutedEventArgs e)
+    {
+        CreateNoteRequested?.Invoke(this, EventArgs.Empty);
+    }
+
     private void OnCreateFolderClicked(object sender, RoutedEventArgs e)
     {
         CreateFolderRequested?.Invoke(this, null);
@@ -254,6 +289,98 @@ public sealed partial class WorkspaceSidebar : UserControl
                 NoteMovedToFolder?.Invoke(this, (Note: note, TargetFolder: _rootFolder!));
             }
         }
+    }
+
+    private void StartInlineRename(Border border, Note note)
+    {
+        var textBlock = border.Child as TextBlock;
+        if (textBlock is null) return;
+
+        var originalName = note.Filename;
+        var originalPadding = border.Padding;
+        var originalBackground = border.Background;
+        var borderWidth = 1.5;
+
+        border.BorderBrush = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["Primary"];
+        border.BorderThickness = new Thickness(borderWidth);
+        border.Padding = new Thickness(
+            originalPadding.Left - borderWidth,
+            originalPadding.Top - borderWidth,
+            originalPadding.Right - borderWidth,
+            originalPadding.Bottom - borderWidth);
+
+        var textBox = new TextBox
+        {
+            Text = System.IO.Path.GetFileNameWithoutExtension(originalName),
+            FontSize = 14,
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextPrimary"],
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(0),
+            MinHeight = 0,
+            MinWidth = 0,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        textBox.Resources["TextControlThemeMinHeight"] = 0d;
+        textBox.Resources["TextControlThemePadding"] = new Thickness(0);
+        textBox.Resources["DeleteButtonVisibility"] = Visibility.Collapsed;
+        textBox.Resources["TextControlBackgroundPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        textBox.Resources["TextControlBackgroundFocused"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        textBox.Resources["TextControlBorderBrushPointerOver"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        textBox.Resources["TextControlBorderBrushFocused"] = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+        border.Child = textBox;
+
+        var committed = false;
+
+        void RestoreBorder()
+        {
+            border.Child = textBlock;
+            border.BorderBrush = null;
+            border.BorderThickness = new Thickness(0);
+            border.Padding = originalPadding;
+            border.Background = originalBackground;
+        }
+
+        void CommitRename()
+        {
+            if (committed) return;
+            committed = true;
+
+            var newName = textBox.Text?.Trim();
+            RestoreBorder();
+
+            if (!string.IsNullOrWhiteSpace(newName) && newName != System.IO.Path.GetFileNameWithoutExtension(originalName))
+                RenameNoteRequested?.Invoke(this, (note, newName));
+            else
+                NoteSelected?.Invoke(this, note);
+        }
+
+        void CancelRename()
+        {
+            if (committed) return;
+            committed = true;
+            RestoreBorder();
+            NoteSelected?.Invoke(this, note);
+        }
+
+        textBox.LostFocus += (s, ev) => CommitRename();
+        textBox.PreviewKeyDown += (s, ev) =>
+        {
+            if (ev.Key is Windows.System.VirtualKey.Enter)
+            {
+                CommitRename();
+                ev.Handled = true;
+            }
+            else if (ev.Key is Windows.System.VirtualKey.Escape)
+            {
+                CancelRename();
+                ev.Handled = true;
+            }
+        };
+
+        textBox.SelectAll();
+        textBox.Focus(FocusState.Programmatic);
     }
 
     private void OnRootNoteDragStarting(UIElement sender, Microsoft.UI.Xaml.DragStartingEventArgs args)

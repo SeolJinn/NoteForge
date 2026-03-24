@@ -154,7 +154,11 @@ public sealed partial class WorkspacePage : Page
         _quickFileNavigator.Show(allNotes, XamlRoot);
     }
 
-    private async void OnCreateNewNoteClicked(object sender, RoutedEventArgs e)
+    private async void OnCreateNewNoteClicked(object sender, RoutedEventArgs e) => await CreateNewNote();
+
+    private async void OnSidebarCreateNewNoteClicked(object? sender, EventArgs? e) => await CreateNewNote();
+
+    private async Task CreateNewNote()
     {
         var newNote = await _mediator.Send(new CreateNoteCommandRequest());
         if (newNote is not null)
@@ -169,4 +173,10 @@ public sealed partial class WorkspacePage : Page
     }
 
     private void OnNewTabClicked(object sender, EventArgs e) => _tabManager.OpenNewTab();
+
+    private void OnSettingsClicked(object? sender, EventArgs? e)
+    {
+        var settingsPopup = new SettingsPopup();
+        settingsPopup.Show(XamlRoot);
+    }
 }

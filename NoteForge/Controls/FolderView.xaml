@@ -138,6 +138,22 @@
                                             <FontIcon Glyph="&#xE734;" FontFamily="Segoe MDL2 Assets"/>
                                         </MenuFlyoutItem.Icon>
                                     </MenuFlyoutItem>
+                                    <MenuFlyoutItem Text="Rename note"
+                                                    Tag="{x:Bind}"
+                                                    Click="OnRenameNoteClicked"
+                                                    Foreground="#DADADA">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xE8AC;" FontFamily="Segoe MDL2 Assets"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
+                                    <MenuFlyoutItem Text="Delete note"
+                                                    Tag="{x:Bind}"
+                                                    Click="OnDeleteNoteClicked"
+                                                    Foreground="#fb464c">
+                                        <MenuFlyoutItem.Icon>
+                                            <FontIcon Glyph="&#xE74D;" FontFamily="Segoe MDL2 Assets"/>
+                                        </MenuFlyoutItem.Icon>
+                                    </MenuFlyoutItem>
                                 </MenuFlyout>
                             </Border.ContextFlyout>
                             <TextBlock Text="{x:Bind Filename, Mode=OneWay}"

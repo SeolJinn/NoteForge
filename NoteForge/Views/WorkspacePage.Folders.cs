@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Microsoft.UI.Xaml.Controls;
 using NoteForge.Handlers.Folders;
 using NoteForge.Handlers.Notes;
@@ -51,6 +52,53 @@ public sealed partial class WorkspacePage : Page
                 await LoadNotes();
             else
                 Toast.Show(result.ErrorMessage!);
+        }
+    }
+
+    private async void OnRenameNoteClicked(object sender, (Note Note, string NewName) data)
+    {
+        var oldPath = data.Note.FilePath;
+        var result = await _mediator.Send(new RenameNoteCommandRequest(data.Note, data.NewName));
+        if (result.Success)
+        {
+            var tab = _tabManager.Tabs.FirstOrDefault(t => t.FilePath == oldPath);
+            if (tab is not null)
+            {
+                tab.DisplayName = data.Note.Filename;
+                tab.FilePath = data.Note.FilePath;
+            }
+
+            await LoadNotes();
+        }
+        else
+        {
+            Toast.Show(result.ErrorMessage!);
+        }
+
+        if (_selectedNote is not null)
+            Sidebar.SetSelectedNote(_selectedNote);
+    }
+
+    private async void OnDeleteNoteClicked(object sender, Note note)
+    {
+        var confirmed = await _folderDialogService.ShowDeleteNoteDialogAsync(note.Filename, XamlRoot);
+        if (!confirmed) return;
+
+        var result = await _mediator.Send(new DeleteNoteCommandRequest(note));
+        if (result.Success)
+        {
+            if (_selectedNote?.FilePath == note.FilePath)
+                SetSelectedNote(null);
+
+            var tabToClose = _tabManager.Tabs.FirstOrDefault(t => t.FilePath == note.FilePath);
+            if (tabToClose is not null)
+                _tabManager.CloseTab(tabToClose);
+
+            await LoadNotes();
+        }
+        else
+        {
+            Toast.Show(result.ErrorMessage!);
         }
     }
 

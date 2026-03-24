@@ -14,6 +14,9 @@ public sealed partial class VaultManagerWindow : Window
     [DllImport("dwmapi.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
     private static extern void DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int pvAttribute, int cbAttribute);
 
+    [DllImport("user32.dll")]
+    private static extern int GetDpiForWindow(IntPtr hwnd);
+
     public event EventHandler<string>? VaultSelected;
 
     public VaultManagerWindow()
@@ -23,7 +26,9 @@ public sealed partial class VaultManagerWindow : Window
         var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(windowId);
-        appWindow.Resize(new Windows.Graphics.SizeInt32(500, 600));
+        var dpi = GetDpiForWindow(hwnd);
+        var scale = dpi / 96.0;
+        appWindow.Resize(new Windows.Graphics.SizeInt32((int)(800 * scale), (int)(450 * scale)));
         appWindow.SetIcon("Assets/app.ico");
 
         SetRoundedCorners(hwnd);

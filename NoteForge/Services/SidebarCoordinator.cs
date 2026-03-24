@@ -9,6 +9,8 @@ namespace NoteForge.Services;
 public class SidebarCoordinator
 {
     private const double SidebarWidth = 250;
+    private double _lastSidebarWidth = SidebarWidth;
+    private bool _isCollapsed;
 
     public void ToggleSidebar(
         WorkspaceSidebar sidebar,
@@ -16,19 +18,18 @@ public class SidebarCoordinator
         ColumnDefinition titleBarColumn,
         Border splitterBorder)
     {
-        if (sidebar.Visibility is Visibility.Visible)
+        if (!_isCollapsed)
         {
+            _lastSidebarWidth = sidebarColumn.ActualWidth > 0 ? sidebarColumn.ActualWidth : SidebarWidth;
             sidebar.Visibility = Visibility.Collapsed;
             splitterBorder.Visibility = Visibility.Collapsed;
             sidebarColumn.Width = new GridLength(0);
             titleBarColumn.Width = GridLength.Auto;
+            _isCollapsed = true;
         }
         else
         {
-            sidebar.Visibility = Visibility.Visible;
-            splitterBorder.Visibility = Visibility.Visible;
-            sidebarColumn.Width = new GridLength(SidebarWidth);
-            titleBarColumn.Width = new GridLength(SidebarWidth);
+            RestoreSidebar(sidebar, sidebarColumn, titleBarColumn, splitterBorder);
         }
     }
 
@@ -38,15 +39,8 @@ public class SidebarCoordinator
         ColumnDefinition titleBarColumn,
         Border splitterBorder)
     {
-        sidebar.Visibility = Visibility.Visible;
-        splitterBorder.Visibility = Visibility.Visible;
         sidebar.SetViewMode(SidebarViewMode.Folder);
-
-        if (sidebarColumn.ActualWidth is 0)
-        {
-            sidebarColumn.Width = new GridLength(SidebarWidth);
-            titleBarColumn.Width = new GridLength(SidebarWidth);
-        }
+        RestoreSidebar(sidebar, sidebarColumn, titleBarColumn, splitterBorder);
     }
 
     public void ShowSearchView(
@@ -58,13 +52,23 @@ public class SidebarCoordinator
     {
         sidebar.LoadNotesForSearch(allNotes);
         sidebar.SetViewMode(SidebarViewMode.Search);
+        RestoreSidebar(sidebar, sidebarColumn, titleBarColumn, splitterBorder);
+    }
+
+    private void RestoreSidebar(
+        WorkspaceSidebar sidebar,
+        ColumnDefinition sidebarColumn,
+        ColumnDefinition titleBarColumn,
+        Border splitterBorder)
+    {
         sidebar.Visibility = Visibility.Visible;
         splitterBorder.Visibility = Visibility.Visible;
 
-        if (sidebarColumn.ActualWidth is 0)
+        if (_isCollapsed)
         {
-            sidebarColumn.Width = new GridLength(SidebarWidth);
-            titleBarColumn.Width = new GridLength(SidebarWidth);
+            sidebarColumn.Width = new GridLength(_lastSidebarWidth);
+            titleBarColumn.Width = new GridLength(_lastSidebarWidth);
+            _isCollapsed = false;
         }
     }
 }

@@ -4,8 +4,7 @@ using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Markup;
-using NoteForge.Converters;
+using Microsoft.UI.Xaml.Media;
 using NoteForge.Models;
 
 namespace NoteForge.Controls;
@@ -15,6 +14,7 @@ public sealed partial class QuickFileNavigator : UserControl
     public event EventHandler<Note>? NoteSelected;
 
     private Popup? _popup;
+    private List<Note> _allNotes = [];
 
     public QuickFileNavigator()
     {
@@ -23,45 +23,91 @@ public sealed partial class QuickFileNavigator : UserControl
 
     public void Show(IEnumerable<Note> notes, XamlRoot xamlRoot)
     {
-        List<Note> allNotes = [.. notes];
+        _allNotes = [.. notes];
 
-        var searchBox = new AutoSuggestBox
+        var searchBox = new TextBox
         {
             PlaceholderText = "Type to search for a note...",
             Width = 400,
-            QueryIcon = new SymbolIcon(Symbol.Find),
-            Height = 36
+            Height = 36,
+            CornerRadius = new CornerRadius(8),
+            Background = (Brush)Application.Current.Resources["AppSurface"],
+            Foreground = (Brush)Application.Current.Resources["TextPrimary"],
+            BorderBrush = (Brush)Application.Current.Resources["Separator"],
+            BorderThickness = new Thickness(1)
         };
-
-        searchBox.Resources["BoolToVisibilityConverter"] = new BoolToVisibilityConverter();
-        searchBox.Resources["ControlCornerRadius"] = new CornerRadius(8);
-        searchBox.Resources["OverlayCornerRadius"] = new CornerRadius(8);
-        searchBox.Resources["TextControlBackground"] = Application.Current.Resources["AppSurface"];
         searchBox.Resources["TextControlBackgroundPointerOver"] = Application.Current.Resources["AppSurface"];
         searchBox.Resources["TextControlBackgroundFocused"] = Application.Current.Resources["AppSurface"];
-        searchBox.Resources["TextControlForeground"] = Application.Current.Resources["TextPrimary"];
         searchBox.Resources["TextControlForegroundPointerOver"] = Application.Current.Resources["TextPrimary"];
         searchBox.Resources["TextControlForegroundFocused"] = Application.Current.Resources["TextPrimary"];
-        searchBox.Resources["TextControlBorderBrush"] = Application.Current.Resources["Separator"];
         searchBox.Resources["TextControlBorderBrushPointerOver"] = Application.Current.Resources["TextSecondary"];
         searchBox.Resources["TextControlBorderBrushFocused"] = Application.Current.Resources["Primary"];
-        searchBox.Resources["TextControlPlaceholderForeground"] = Application.Current.Resources["TextSecondary"];
-        searchBox.Resources["TextControlPlaceholderForegroundPointerOver"] = Application.Current.Resources["TextSecondary"];
-        searchBox.Resources["TextControlPlaceholderForegroundFocused"] = Application.Current.Resources["TextSecondary"];
 
-        searchBox.ItemTemplate = (DataTemplate)XamlReader.Load(@"
-            <DataTemplate xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation"">
-                <Grid Padding=""8,6"">
-                    <TextBlock Text=""{Binding Filename}""
-                               FontSize=""13""
-                               Foreground=""#DADADA""
-                               TextTrimming=""CharacterEllipsis""/>
-                </Grid>
-            </DataTemplate>");
+        var resultsList = new ListView
+        {
+            MaxHeight = 300,
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(0),
+            SelectionMode = ListViewSelectionMode.Single,
+            IsItemClickEnabled = true
+        };
+        resultsList.Resources["ListViewItemBackgroundPointerOver"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 58, 58, 58));
+        resultsList.Resources["ListViewItemBackgroundSelected"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 58, 58, 58));
+        resultsList.Resources["ListViewItemBackgroundSelectedPointerOver"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 68, 68, 68));
+        resultsList.Resources["ListViewItemBackgroundPressed"] = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 50, 50, 50));
+
+        resultsList.ItemContainerStyle = new Style(typeof(ListViewItem));
+        resultsList.ItemContainerStyle.Setters.Add(new Setter(ListViewItem.PaddingProperty, new Thickness(0)));
+        resultsList.ItemContainerStyle.Setters.Add(new Setter(ListViewItem.MinHeightProperty, 0d));
+        resultsList.ItemContainerStyle.Setters.Add(new Setter(ListViewItem.CornerRadiusProperty, new CornerRadius(6)));
+
+        resultsList.ItemTemplate = CreateItemTemplate();
+        resultsList.ItemClick += (s, e) =>
+        {
+            if (e.ClickedItem is Note note)
+            {
+                NoteSelected?.Invoke(this, note);
+                _popup!.IsOpen = false;
+            }
+        };
+
+        var emptyMessage = new TextBlock
+        {
+            Text = "No notes found",
+            FontSize = 13,
+            Foreground = (Brush)Application.Current.Resources["TextSecondary"],
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Padding = new Thickness(0, 16, 0, 16),
+            Visibility = Visibility.Collapsed
+        };
+
+        var resultsContainer = new Border
+        {
+            Background = (Brush)Application.Current.Resources["SideBar"],
+            BorderBrush = (Brush)Application.Current.Resources["Separator"],
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(4),
+            Visibility = Visibility.Collapsed
+        };
+
+        var resultsPanel = new StackPanel();
+        resultsPanel.Children.Add(resultsList);
+        resultsPanel.Children.Add(emptyMessage);
+        resultsContainer.Child = resultsPanel;
+
+        var container = new StackPanel
+        {
+            Width = 400,
+            Spacing = 4
+        };
+        container.Children.Add(searchBox);
+        container.Children.Add(resultsContainer);
 
         _popup = new Popup
         {
-            Child = searchBox,
+            Child = container,
             IsLightDismissEnabled = true,
             LightDismissOverlayMode = LightDismissOverlayMode.On,
             XamlRoot = xamlRoot
@@ -71,52 +117,85 @@ public sealed partial class QuickFileNavigator : UserControl
         _popup.HorizontalOffset = (bounds.Width - 400) / 2;
         _popup.VerticalOffset = 100;
 
-        searchBox.TextChanged += (s, args) =>
+        searchBox.TextChanged += (s, e) =>
         {
-            if (args.Reason is AutoSuggestionBoxTextChangeReason.UserInput)
+            var query = searchBox.Text?.Trim() ?? string.Empty;
+            List<Note> results;
+            if (string.IsNullOrWhiteSpace(query))
+                results = [.. _allNotes.Take(10)];
+            else
+                results = [.. App.SearchService.SearchByName(_allNotes, query).Take(10)];
+
+            resultsList.ItemsSource = results;
+            resultsList.Visibility = results.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            emptyMessage.Visibility = results.Count is 0 ? Visibility.Visible : Visibility.Collapsed;
+            resultsContainer.Visibility = Visibility.Visible;
+        };
+
+        searchBox.PreviewKeyDown += (s, e) =>
+        {
+            if (e.Key is Windows.System.VirtualKey.Escape)
             {
-                var query = searchBox.Text;
-                var searchResults = App.SearchService.SearchByName(allNotes, query);
-                searchBox.ItemsSource = (List<Note>)[.. searchResults.Take(10)];
+                _popup.IsOpen = false;
+                e.Handled = true;
+            }
+            else if (e.Key is Windows.System.VirtualKey.Enter)
+            {
+                var source = resultsList.ItemsSource as List<Note>;
+                if (source?.Count > 0)
+                {
+                    NoteSelected?.Invoke(this, source[0]);
+                    _popup.IsOpen = false;
+                    e.Handled = true;
+                }
+            }
+            else if (e.Key is Windows.System.VirtualKey.Down && resultsList.Items.Count > 0)
+            {
+                resultsList.Focus(FocusState.Programmatic);
+                resultsList.SelectedIndex = 0;
+                e.Handled = true;
             }
         };
 
-        searchBox.QuerySubmitted += (s, args) =>
+        resultsList.PreviewKeyDown += (s, e) =>
         {
-            Note? selectedNote = null;
-
-            if (args.ChosenSuggestion is Note note)
-            {
-                selectedNote = note;
-            }
-            else if (!string.IsNullOrWhiteSpace(args.QueryText))
-            {
-                var searchResults = App.SearchService.SearchByName(allNotes, args.QueryText);
-                selectedNote = searchResults.FirstOrDefault();
-            }
-
-            if (selectedNote is not null)
-            {
-                NoteSelected?.Invoke(this, selectedNote);
-                _popup.IsOpen = false;
-            }
-        };
-
-        searchBox.PreviewKeyDown += (s, args) =>
-        {
-            if (args.Key is Windows.System.VirtualKey.Escape)
+            if (e.Key is Windows.System.VirtualKey.Escape)
             {
                 _popup.IsOpen = false;
-                args.Handled = true;
+                e.Handled = true;
+            }
+            else if (e.Key is Windows.System.VirtualKey.Enter && resultsList.SelectedItem is Note note)
+            {
+                NoteSelected?.Invoke(this, note);
+                _popup.IsOpen = false;
+                e.Handled = true;
             }
         };
 
         _popup.IsOpen = true;
 
-        Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(
+            Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
         {
-            searchBox.ItemsSource = (List<Note>)[.. allNotes.Take(10)];
+            var initial = (List<Note>)[.. _allNotes.Take(10)];
+            resultsList.ItemsSource = initial;
+            resultsList.Visibility = initial.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            emptyMessage.Visibility = initial.Count is 0 ? Visibility.Visible : Visibility.Collapsed;
+            resultsContainer.Visibility = Visibility.Visible;
             searchBox.Focus(FocusState.Programmatic);
         });
+    }
+
+    private static DataTemplate CreateItemTemplate()
+    {
+        return (DataTemplate)Microsoft.UI.Xaml.Markup.XamlReader.Load(@"
+            <DataTemplate xmlns=""http://schemas.microsoft.com/winfx/2006/xaml/presentation"">
+                <Grid Padding=""12,8"">
+                    <TextBlock Text=""{Binding Filename}""
+                               FontSize=""13""
+                               Foreground=""#DADADA""
+                               TextTrimming=""CharacterEllipsis""/>
+                </Grid>
+            </DataTemplate>");
     }
 }

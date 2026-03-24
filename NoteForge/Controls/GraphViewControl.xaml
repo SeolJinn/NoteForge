@@ -30,9 +30,9 @@
         <SolidColorBrush x:Key="SliderTrackFill" Color="#363636"/>
         <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#404040"/>
         <SolidColorBrush x:Key="SliderTrackFillPressed" Color="#404040"/>
-        <SolidColorBrush x:Key="SliderThumbBackground" Color="#007ACC"/>
-        <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#0088dd"/>
-        <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#006bb3"/>
+        <SolidColorBrush x:Key="SliderThumbBackground" Color="#4fc3f7"/>
+        <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#6fcef9"/>
+        <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#3ab0de"/>
     </UserControl.Resources>
 
     <Grid>

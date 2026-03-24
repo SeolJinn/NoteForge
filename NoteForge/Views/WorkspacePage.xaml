@@ -98,9 +98,13 @@
                                        VaultSelected="OnVaultItemClicked"
                                        ManageVaultsRequested="OnManageVaultsClicked"
                                        ToggleFavoriteRequested="OnToggleFavoriteClicked"
+                                       CreateNoteRequested="OnSidebarCreateNewNoteClicked"
                                        CreateFolderRequested="OnCreateFolderClicked"
                                        RenameFolderRequested="OnRenameFolderClicked"
                                        DeleteFolderRequested="OnDeleteFolderClicked"
+                                       SettingsRequested="OnSettingsClicked"
+                                       RenameNoteRequested="OnRenameNoteClicked"
+                                       DeleteNoteRequested="OnDeleteNoteClicked"
                                        NoteMovedToFolder="OnNoteMovedToFolder"/>
 
             <!-- Splitter -->

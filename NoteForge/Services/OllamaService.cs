@@ -25,7 +25,6 @@ public class OllamaService : IOllamaService, IDisposable
         _logger = logger;
         _httpClient = new HttpClient
         {
-            BaseAddress = new Uri(OllamaSettings.OllamaUrl),
             Timeout = TimeSpan.FromMinutes(5)
         };
     }
@@ -44,7 +43,7 @@ public class OllamaService : IOllamaService, IDisposable
         var json = JsonSerializer.Serialize(requestBody);
         using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/generate")
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{OllamaSettings.OllamaUrl}/api/generate")
         {
             Content = content
         };
@@ -92,7 +91,7 @@ public class OllamaService : IOllamaService, IDisposable
 
         try
         {
-            var response = await _httpClient.PostAsync("/api/embeddings", content, cancellationToken);
+            var response = await _httpClient.PostAsync($"{OllamaSettings.OllamaUrl}/api/embeddings", content, cancellationToken);
             response.EnsureSuccessStatusCode();
 
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);

@@ -33,6 +33,13 @@
                                     <Setter Property="Padding" Value="4"/>
                                 </Style>
                             </MenuFlyout.MenuFlyoutPresenterStyle>
+                            <MenuFlyoutItem Text="New note"
+                                            Click="OnCreateNoteClicked"
+                                            Foreground="#DADADA">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE8A5;" FontSize="16"/>
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
                             <MenuFlyoutItem Text="New folder"
                                             Click="OnCreateFolderClicked"
                                             Foreground="#DADADA">
@@ -87,10 +94,28 @@
             </Grid>
         </Grid>
 
-        <Grid Grid.Row="1" Padding="10">
+        <Grid Grid.Row="1" Padding="10" ColumnDefinitions="*, Auto" ColumnSpacing="6">
             <controls:VaultSelector x:Name="VaultSelectorControl"
+                                   Grid.Column="0"
                                    VaultSelected="OnVaultItemSelected"
                                    ManageVaultsRequested="OnManageVaultsRequested"/>
+            <Button Grid.Column="1"
+                    Click="OnSettingsClicked"
+                    Background="#1E1E1E"
+                    BorderThickness="1"
+                    BorderBrush="{StaticResource Separator}"
+                    CornerRadius="6"
+                    Padding="10"
+                    VerticalAlignment="Stretch">
+                <Button.Resources>
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2A2A2A"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#333333"/>
+                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#404040"/>
+                </Button.Resources>
+                <FontIcon Glyph="&#xE713;"
+                          FontSize="14"
+                          Foreground="{StaticResource TextSecondary}"/>
+            </Button>
         </Grid>
     </Grid>
 </UserControl>

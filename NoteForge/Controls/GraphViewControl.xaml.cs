@@ -123,7 +123,7 @@ public sealed partial class GraphViewControl : UserControl
         {
             Stroke = edge.Type switch
             {
-                EdgeType.Explicit => new SolidColorBrush(Colors.DodgerBlue),
+                EdgeType.Explicit => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 195, 247)),
                 EdgeType.Semantic => new SolidColorBrush(Colors.MediumPurple),
                 EdgeType.Hybrid => new SolidColorBrush(Colors.Cyan),
                 _ => new SolidColorBrush(Colors.Gray)
