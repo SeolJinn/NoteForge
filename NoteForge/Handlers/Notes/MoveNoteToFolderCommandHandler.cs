@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.Extensions.Logging;
+using NoteForge.Configuration;
 using NoteForge.Helpers;
 using NoteForge.Interfaces;
 using NoteForge.Models;
@@ -12,6 +13,7 @@ namespace NoteForge.Handlers.Notes;
 
 public class MoveNoteToFolderCommandHandler(
     INoteService noteService,
+    IEmbeddingRepository embeddingRepository,
     IEmbeddingService embeddingService,
     ISemanticSearchStrategy semanticSearch,
     ILogger<MoveNoteToFolderCommandHandler> logger) : IRequestHandler<MoveNoteToFolderCommandRequest, OperationResult>
@@ -39,8 +41,13 @@ public class MoveNoteToFolderCommandHandler(
             request.Note.FilePath = targetFile;
             request.Note.Filename = Path.GetFileNameWithoutExtension(targetFile);
 
+            if (embeddingRepository.IsInitialized)
+                await embeddingRepository.DeleteEmbeddingAsync(sourceFile);
+
             semanticSearch.InvalidateIndex();
-            embeddingService.QueueEmbeddingUpdate(request.Note, oldPathToDelete: sourceFile, onComplete: semanticSearch.InvalidateEmbeddingsCache);
+
+            if (OllamaSettings.AiEnabled)
+                embeddingService.QueueEmbeddingUpdate(request.Note, onComplete: semanticSearch.InvalidateEmbeddingsCache);
 
             return OperationResult.Ok();
         }

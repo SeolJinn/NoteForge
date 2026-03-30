@@ -50,7 +50,8 @@
                           FontSize="10"
                           Foreground="{StaticResource TextSecondary}"
                           VerticalAlignment="Center"/>
-                <TextBlock Text="{x:Bind Folder.Name, Mode=OneWay}"
+                <TextBlock x:Name="FolderNameTextBlock"
+                           Text="{x:Bind Folder.Name, Mode=OneWay}"
                            FontSize="12"
                            FontWeight="SemiBold"
                            Foreground="{StaticResource TextPrimary}"
@@ -108,6 +109,7 @@
 
             <!-- Notes List -->
             <ItemsControl Grid.Row="1"
+                          x:Name="NotesItemsControl"
                           ItemsSource="{x:Bind Folder.Notes, Mode=OneWay}"
                           Margin="4,0,0,0">
                 <ItemsControl.ItemTemplate>
@@ -130,7 +132,7 @@
                                             <Setter Property="Padding" Value="4"/>
                                         </Style>
                                     </MenuFlyout.MenuFlyoutPresenterStyle>
-                                    <MenuFlyoutItem Text="Add to favorites"
+                                    <MenuFlyoutItem Text="Toggle favorite"
                                                     Tag="{x:Bind}"
                                                     Click="OnToggleFavoriteClicked"
                                                     Foreground="#DADADA">

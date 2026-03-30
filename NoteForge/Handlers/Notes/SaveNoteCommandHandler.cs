@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.Extensions.Logging;
+using NoteForge.Configuration;
 using NoteForge.Interfaces;
 using NoteForge.Models;
 
@@ -28,7 +29,9 @@ public class SaveNoteCommandHandler(
             await File.WriteAllTextAsync(tempPath, request.Note.Text, cancellationToken);
             File.Move(tempPath, targetPath, overwrite: true);
             semanticSearch.InvalidateIndex();
-            embeddingService.QueueEmbeddingUpdate(request.Note, onComplete: semanticSearch.InvalidateEmbeddingsCache);
+
+            if (OllamaSettings.AiEnabled)
+                embeddingService.QueueEmbeddingUpdate(request.Note, onComplete: semanticSearch.InvalidateEmbeddingsCache);
 
             return true;
         }

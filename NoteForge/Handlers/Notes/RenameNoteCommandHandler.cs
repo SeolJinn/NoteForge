@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.Extensions.Logging;
+using NoteForge.Configuration;
 using NoteForge.Helpers;
 using NoteForge.Interfaces;
 using NoteForge.Models;
@@ -12,6 +13,7 @@ namespace NoteForge.Handlers.Notes;
 
 public class RenameNoteCommandHandler(
     INoteService noteService,
+    IEmbeddingRepository embeddingRepository,
     IEmbeddingService embeddingService,
     ISemanticSearchStrategy semanticSearch,
     ILogger<RenameNoteCommandHandler> logger) : IRequestHandler<RenameNoteCommandRequest, OperationResult>
@@ -62,8 +64,13 @@ public class RenameNoteCommandHandler(
             note.FilePath = newPath;
             note.Filename = Path.GetFileNameWithoutExtension(newPath);
 
+            if (embeddingRepository.IsInitialized)
+                await embeddingRepository.DeleteEmbeddingAsync(oldPath);
+
             semanticSearch.InvalidateIndex();
-            embeddingService.QueueEmbeddingUpdate(note, oldPathToDelete: oldPath, onComplete: semanticSearch.InvalidateEmbeddingsCache);
+
+            if (OllamaSettings.AiEnabled)
+                embeddingService.QueueEmbeddingUpdate(note, onComplete: semanticSearch.InvalidateEmbeddingsCache);
 
             return OperationResult.Ok();
         }

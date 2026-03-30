@@ -17,6 +17,114 @@ public class SettingsPopup
         var ollamaModelBox = CreateTextBox(OllamaSettings.OllamaModel, "ibm/granite4:1b-h");
         var embeddingModelBox = CreateTextBox(OllamaSettings.EmbeddingModel, "nomic-embed-text");
 
+        var aiToggle = new ToggleSwitch
+        {
+            IsOn = OllamaSettings.AiEnabled,
+            OnContent = "Enabled",
+            OffContent = "Disabled",
+            Header = new StackPanel
+            {
+                Spacing = 2,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = "AI Features",
+                        FontSize = 14,
+                        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                        Foreground = (Brush)Application.Current.Resources["TextSecondary"]
+                    },
+                    new TextBlock
+                    {
+                        Text = "Enable AI-powered search and summaries",
+                        FontSize = 12,
+                        Foreground = (Brush)Application.Current.Resources["TextSecondary"],
+                        Opacity = 0.7
+                    }
+                }
+            }
+        };
+
+        var ollamaSection = CreateSection("AI / Ollama", [
+            CreateField("Ollama URL", ollamaUrlBox),
+            CreateField("Text generation model", ollamaModelBox),
+            CreateField("Embedding model", embeddingModelBox)
+        ]);
+        ollamaSection.Visibility = OllamaSettings.AiEnabled ? Visibility.Visible : Visibility.Collapsed;
+
+        var showExplicitLinksCheckbox = new CheckBox
+        {
+            Content = "Show Explicit Links",
+            IsChecked = OllamaSettings.GraphShowExplicitLinks,
+            Foreground = (Brush)Application.Current.Resources["TextPrimary"]
+        };
+
+        var showSemanticLinksCheckbox = new CheckBox
+        {
+            Content = "Show Semantic Links",
+            IsChecked = OllamaSettings.GraphShowSemanticLinks,
+            IsEnabled = aiToggle.IsOn,
+            Foreground = (Brush)Application.Current.Resources["TextPrimary"]
+        };
+
+        var semanticThresholdText = new TextBlock
+        {
+            Text = $"{(int)(OllamaSettings.GraphSemanticThreshold * 100)}%",
+            FontSize = 11,
+            Foreground = (Brush)Application.Current.Resources["TextSecondary"],
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+
+        var semanticThresholdSlider = new Slider
+        {
+            Minimum = 0,
+            Maximum = 1,
+            Value = OllamaSettings.GraphSemanticThreshold,
+            StepFrequency = 0.05,
+            IsEnabled = aiToggle.IsOn
+        };
+        semanticThresholdSlider.ValueChanged += (s, e) =>
+        {
+            semanticThresholdText.Text = $"{(int)(semanticThresholdSlider.Value * 100)}%";
+        };
+
+        var tfidfThresholdText = new TextBlock
+        {
+            Text = $"{(int)(OllamaSettings.GraphTfidfThreshold * 100)}%",
+            FontSize = 11,
+            Foreground = (Brush)Application.Current.Resources["TextSecondary"],
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+
+        var tfidfThresholdSlider = new Slider
+        {
+            Minimum = 0,
+            Maximum = 1,
+            Value = OllamaSettings.GraphTfidfThreshold,
+            StepFrequency = 0.05,
+            IsEnabled = aiToggle.IsOn
+        };
+        tfidfThresholdSlider.ValueChanged += (s, e) =>
+        {
+            tfidfThresholdText.Text = $"{(int)(tfidfThresholdSlider.Value * 100)}%";
+        };
+
+        var graphSection = CreateGraphSection(
+            showExplicitLinksCheckbox,
+            showSemanticLinksCheckbox,
+            semanticThresholdSlider,
+            semanticThresholdText,
+            tfidfThresholdSlider,
+            tfidfThresholdText);
+
+        aiToggle.Toggled += (s, e) =>
+        {
+            ollamaSection.Visibility = aiToggle.IsOn ? Visibility.Visible : Visibility.Collapsed;
+            showSemanticLinksCheckbox.IsEnabled = aiToggle.IsOn;
+            semanticThresholdSlider.IsEnabled = aiToggle.IsOn;
+            tfidfThresholdSlider.IsEnabled = aiToggle.IsOn;
+        };
+
         var content = new StackPanel
         {
             Spacing = 20,
@@ -24,12 +132,12 @@ public class SettingsPopup
             Children =
             {
                 CreateSectionHeader("Settings"),
-                CreateSection("AI / Ollama", [
-                    CreateField("Ollama URL", ollamaUrlBox),
-                    CreateField("Text generation model", ollamaModelBox),
-                    CreateField("Embedding model", embeddingModelBox)
-                ]),
-                CreateButtonRow(ollamaUrlBox, ollamaModelBox, embeddingModelBox)
+                aiToggle,
+                ollamaSection,
+                graphSection,
+                CreateButtonRow(aiToggle, ollamaUrlBox, ollamaModelBox, embeddingModelBox,
+                    showExplicitLinksCheckbox, showSemanticLinksCheckbox,
+                    semanticThresholdSlider, tfidfThresholdSlider)
             }
         };
 
@@ -100,6 +208,52 @@ public class SettingsPopup
         return field;
     }
 
+    private static StackPanel CreateGraphSection(
+        CheckBox explicitLinksCheckbox,
+        CheckBox semanticLinksCheckbox,
+        Slider semanticSlider,
+        TextBlock semanticText,
+        Slider tfidfSlider,
+        TextBlock tfidfText)
+    {
+        var section = new StackPanel { Spacing = 12 };
+
+        section.Children.Add(new TextBlock
+        {
+            Text = "Knowledge Graph",
+            FontSize = 14,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = (Brush)Application.Current.Resources["TextSecondary"]
+        });
+
+        section.Children.Add(explicitLinksCheckbox);
+        section.Children.Add(semanticLinksCheckbox);
+
+        var semanticField = new StackPanel { Spacing = 6 };
+        semanticField.Children.Add(new TextBlock
+        {
+            Text = "Semantic Threshold",
+            FontSize = 12,
+            Foreground = (Brush)Application.Current.Resources["TextSecondary"]
+        });
+        semanticField.Children.Add(semanticSlider);
+        semanticField.Children.Add(semanticText);
+        section.Children.Add(semanticField);
+
+        var tfidfField = new StackPanel { Spacing = 6 };
+        tfidfField.Children.Add(new TextBlock
+        {
+            Text = "TF-IDF Threshold",
+            FontSize = 12,
+            Foreground = (Brush)Application.Current.Resources["TextSecondary"]
+        });
+        tfidfField.Children.Add(tfidfSlider);
+        tfidfField.Children.Add(tfidfText);
+        section.Children.Add(tfidfField);
+
+        return section;
+    }
+
     private static TextBox CreateTextBox(string text, string placeholder)
     {
         var textBox = new TextBox
@@ -119,7 +273,10 @@ public class SettingsPopup
         return textBox;
     }
 
-    private Grid CreateButtonRow(TextBox urlBox, TextBox modelBox, TextBox embeddingBox)
+    private Grid CreateButtonRow(
+        ToggleSwitch aiToggle, TextBox urlBox, TextBox modelBox, TextBox embeddingBox,
+        CheckBox explicitLinksCheckbox, CheckBox semanticLinksCheckbox,
+        Slider semanticSlider, Slider tfidfSlider)
     {
         var saveButton = new Button
         {
@@ -152,7 +309,9 @@ public class SettingsPopup
 
         saveButton.Click += (s, e) =>
         {
-            SaveSettings(urlBox, modelBox, embeddingBox);
+            SaveSettings(aiToggle, urlBox, modelBox, embeddingBox,
+                explicitLinksCheckbox, semanticLinksCheckbox,
+                semanticSlider, tfidfSlider);
             _popup!.IsOpen = false;
         };
 
@@ -174,8 +333,13 @@ public class SettingsPopup
         return grid;
     }
 
-    private static void SaveSettings(TextBox urlBox, TextBox modelBox, TextBox embeddingBox)
+    private static void SaveSettings(
+        ToggleSwitch aiToggle, TextBox urlBox, TextBox modelBox, TextBox embeddingBox,
+        CheckBox explicitLinksCheckbox, CheckBox semanticLinksCheckbox,
+        Slider semanticSlider, Slider tfidfSlider)
     {
+        OllamaSettings.AiEnabled = aiToggle.IsOn;
+
         var url = urlBox.Text?.Trim().TrimEnd('/');
         if (!string.IsNullOrWhiteSpace(url))
             OllamaSettings.OllamaUrl = url;
@@ -187,5 +351,10 @@ public class SettingsPopup
         var embeddingModel = embeddingBox.Text?.Trim();
         if (!string.IsNullOrWhiteSpace(embeddingModel))
             OllamaSettings.EmbeddingModel = embeddingModel;
+
+        OllamaSettings.GraphShowExplicitLinks = explicitLinksCheckbox.IsChecked ?? true;
+        OllamaSettings.GraphShowSemanticLinks = semanticLinksCheckbox.IsChecked ?? true;
+        OllamaSettings.GraphSemanticThreshold = (float)semanticSlider.Value;
+        OllamaSettings.GraphTfidfThreshold = (float)tfidfSlider.Value;
     }
 }

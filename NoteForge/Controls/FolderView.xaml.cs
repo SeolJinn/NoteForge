@@ -16,7 +16,7 @@ public sealed partial class FolderView : UserControl
     public event EventHandler? HeaderClicked;
     public event EventHandler<Note>? NoteSelected;
     public event EventHandler<Folder>? CreateSubfolderRequested;
-    public event EventHandler<Folder>? RenameFolderRequested;
+    public event EventHandler<(Folder Folder, string NewName)>? RenameFolderRequested;
     public event EventHandler<Folder>? DeleteFolderRequested;
     public event EventHandler<(Note Note, Folder TargetFolder)>? NoteMovedToFolder;
     public event EventHandler<Note>? ToggleFavoriteRequested;
@@ -40,7 +40,7 @@ public sealed partial class FolderView : UserControl
             var subfolderView = new FolderView(subfolder, RootFolder);
             subfolderView.NoteSelected += (s, note) => NoteSelected?.Invoke(this, note);
             subfolderView.CreateSubfolderRequested += (s, f) => CreateSubfolderRequested?.Invoke(this, f);
-            subfolderView.RenameFolderRequested += (s, f) => RenameFolderRequested?.Invoke(this, f);
+            subfolderView.RenameFolderRequested += (s, data) => RenameFolderRequested?.Invoke(this, data);
             subfolderView.DeleteFolderRequested += (s, f) => DeleteFolderRequested?.Invoke(this, f);
             subfolderView.NoteMovedToFolder += (s, e) => NoteMovedToFolder?.Invoke(this, e);
             subfolderView.ToggleFavoriteRequested += (s, note) => ToggleFavoriteRequested?.Invoke(this, note);
@@ -184,7 +184,99 @@ public sealed partial class FolderView : UserControl
 
     private void OnRenameFolderClicked(object sender, RoutedEventArgs e)
     {
-        RenameFolderRequested?.Invoke(this, Folder);
+        StartInlineFolderRename();
+    }
+
+    private void StartInlineFolderRename()
+    {
+        var stackPanel = FolderNameTextBlock.Parent as StackPanel;
+        if (stackPanel is null) return;
+
+        var originalName = Folder.Name;
+        var originalPadding = HeaderGrid.Padding;
+        var borderWidth = 1.5;
+
+        HeaderGrid.BorderBrush = (Brush)Application.Current.Resources["Primary"];
+        HeaderGrid.BorderThickness = new Thickness(borderWidth);
+        HeaderGrid.Padding = new Thickness(
+            originalPadding.Left - borderWidth,
+            originalPadding.Top - borderWidth,
+            originalPadding.Right - borderWidth,
+            originalPadding.Bottom - borderWidth);
+
+        var textBox = new TextBox
+        {
+            Text = originalName,
+            FontSize = 12,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = (Brush)Application.Current.Resources["TextPrimary"],
+            Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(0),
+            MinHeight = 0,
+            MinWidth = 0,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        textBox.Resources["TextControlThemeMinHeight"] = 0d;
+        textBox.Resources["TextControlThemePadding"] = new Thickness(0);
+        textBox.Resources["DeleteButtonVisibility"] = Visibility.Collapsed;
+        textBox.Resources["TextControlBackgroundPointerOver"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        textBox.Resources["TextControlBackgroundFocused"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        textBox.Resources["TextControlBorderBrushPointerOver"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        textBox.Resources["TextControlBorderBrushFocused"] = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+
+        var index = stackPanel.Children.IndexOf(FolderNameTextBlock);
+        stackPanel.Children[index] = textBox;
+
+        var committed = false;
+
+        void Restore()
+        {
+            stackPanel.Children[stackPanel.Children.IndexOf(textBox)] = FolderNameTextBlock;
+            HeaderGrid.BorderBrush = null;
+            HeaderGrid.BorderThickness = new Thickness(0);
+            HeaderGrid.Padding = originalPadding;
+        }
+
+        void CommitRename()
+        {
+            if (committed) return;
+            committed = true;
+
+            var newName = textBox.Text?.Trim();
+            Restore();
+
+            if (!string.IsNullOrWhiteSpace(newName) && newName != originalName)
+                RenameFolderRequested?.Invoke(this, (Folder, newName));
+        }
+
+        void CancelRename()
+        {
+            if (committed) return;
+            committed = true;
+            Restore();
+        }
+
+        textBox.LostFocus += (s, ev) =>
+        {
+            if (!IsFocusInPopup(textBox)) CommitRename();
+        };
+        textBox.PreviewKeyDown += (s, ev) =>
+        {
+            if (ev.Key is Windows.System.VirtualKey.Enter)
+            {
+                CommitRename();
+                ev.Handled = true;
+            }
+            else if (ev.Key is Windows.System.VirtualKey.Escape)
+            {
+                CancelRename();
+                ev.Handled = true;
+            }
+        };
+
+        textBox.SelectAll();
+        textBox.Focus(FocusState.Programmatic);
     }
 
     private void OnDeleteFolderClicked(object sender, RoutedEventArgs e)
@@ -284,7 +376,10 @@ public sealed partial class FolderView : UserControl
                 NoteSelected?.Invoke(this, note);
         }
 
-        textBox.LostFocus += (s, ev) => CommitRename();
+        textBox.LostFocus += (s, ev) =>
+        {
+            if (!IsFocusInPopup(textBox)) CommitRename();
+        };
         textBox.PreviewKeyDown += (s, ev) =>
         {
             if (ev.Key is Windows.System.VirtualKey.Enter)
@@ -305,24 +400,16 @@ public sealed partial class FolderView : UserControl
 
     private Border? FindNoteBorder(Note note)
     {
-        var itemsControl = FindItemsControl();
-        if (itemsControl is null) return null;
-
-        foreach (var item in itemsControl.Items)
+        foreach (var item in NotesItemsControl.Items)
         {
             if (item is Note n && n.FilePath == note.FilePath)
             {
-                var container = itemsControl.ContainerFromItem(item);
+                var container = NotesItemsControl.ContainerFromItem(item);
                 if (container is not null)
                     return FindChildBorder(container);
             }
         }
         return null;
-    }
-
-    private ItemsControl? FindItemsControl()
-    {
-        return FindChild<ItemsControl>(this);
     }
 
     private static Border? FindChildBorder(DependencyObject parent)
@@ -333,18 +420,6 @@ public sealed partial class FolderView : UserControl
             if (child is Border b && b.DataContext is Note)
                 return b;
             var found = FindChildBorder(child);
-            if (found is not null) return found;
-        }
-        return null;
-    }
-
-    private static T? FindChild<T>(DependencyObject parent) where T : DependencyObject
-    {
-        for (var i = 0; i < Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(parent, i);
-            if (child is T t) return t;
-            var found = FindChild<T>(child);
             if (found is not null) return found;
         }
         return null;
@@ -362,5 +437,17 @@ public sealed partial class FolderView : UserControl
     {
         DropZoneOverlay.Visibility = Visibility.Collapsed;
         e.Handled = true;
+    }
+
+    private static bool IsFocusInPopup(UIElement reference)
+    {
+        if (reference.XamlRoot is null) return false;
+        var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(reference.XamlRoot) as DependencyObject;
+        while (focused is not null)
+        {
+            if (focused is Microsoft.UI.Xaml.Controls.Primitives.Popup) return true;
+            focused = VisualTreeHelper.GetParent(focused);
+        }
+        return false;
     }
 }

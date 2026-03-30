@@ -16,10 +16,13 @@
 
     <Grid RowDefinitions="*, Auto" Background="{StaticResource SideBar}">
         <Grid Grid.Row="0">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          Background="Transparent"
+                          Tapped="OnEmptySpaceTapped">
                 <StackPanel x:Name="FoldersContainer"
                             Background="Transparent"
                             AllowDrop="True"
+                            IsTabStop="True"
                             DragOver="OnRootDragOver"
                             Drop="OnRootDrop">
                     <StackPanel.ContextFlyout>

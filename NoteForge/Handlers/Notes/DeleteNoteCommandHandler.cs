@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.Extensions.Logging;
+using NoteForge.Configuration;
 using NoteForge.Interfaces;
 using NoteForge.Models;
 
@@ -29,7 +30,9 @@ public class DeleteNoteCommandHandler(
 
             try
             {
-                await embeddingRepository.DeleteEmbeddingAsync(note.FilePath);
+                if (embeddingRepository.IsInitialized)
+                    await embeddingRepository.DeleteEmbeddingAsync(note.FilePath);
+
                 semanticSearch.InvalidateIndex();
                 semanticSearch.InvalidateEmbeddingsCache();
             }

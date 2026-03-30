@@ -6,10 +6,15 @@
     xmlns:converters="using:NoteForge.Converters">
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
+                <ResourceDictionary Source="ms-appx:///Styles/TextBoxOverrides.xaml" />
+            </ResourceDictionary.MergedDictionaries>
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
             <converters:BoolToChevronConverter x:Key="BoolToChevronConverter"/>
             <converters:CollectionCountToVisibilityConverter x:Key="CollectionCountToVisibilityConverter"/>
+
             <!-- Color Palette -->
             <SolidColorBrush x:Key="AppBackground" Color="#1E1E1E"/>
             <SolidColorBrush x:Key="TopBar" Color="#363636"/>

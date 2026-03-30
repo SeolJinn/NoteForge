@@ -101,7 +101,7 @@
                                         <Setter Property="Padding" Value="4"/>
                                     </Style>
                                 </MenuFlyout.MenuFlyoutPresenterStyle>
-                                <MenuFlyoutItem Text="Add to favorites"
+                                <MenuFlyoutItem Text="Toggle favorite"
                                                 Tag="{x:Bind}"
                                                 Click="OnToggleFavoriteClicked"
                                                 Foreground="#DADADA">

@@ -23,17 +23,13 @@ public sealed partial class WorkspacePage : Page
         }
     }
 
-    private async void OnRenameFolderClicked(object sender, Folder folder)
+    private async void OnRenameFolderClicked(object sender, (Folder Folder, string NewName) data)
     {
-        var newName = await _folderDialogService.ShowRenameFolderDialogAsync(folder.Name, XamlRoot);
-        if (newName is not null)
-        {
-            var result = await _mediator.Send(new RenameFolderCommandRequest(folder.DirectoryPath, newName));
-            if (result.Success)
-                await LoadNotes();
-            else
-                Toast.Show(result.ErrorMessage!);
-        }
+        var result = await _mediator.Send(new RenameFolderCommandRequest(data.Folder.DirectoryPath, data.NewName));
+        if (result.Success)
+            await LoadNotes();
+        else
+            Toast.Show(result.ErrorMessage!);
     }
 
     private async void OnDeleteFolderClicked(object sender, Folder folder)

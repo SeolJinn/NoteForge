@@ -23,16 +23,6 @@
         <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFF"/>
         <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#FFFFFF"/>
 
-        <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundUnchecked" Color="#DADADA"/>
-        <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundUncheckedPointerOver" Color="#FFFFFF"/>
-        <SolidColorBrush x:Key="CheckBoxCheckGlyphForegroundUncheckedPressed" Color="#FFFFFF"/>
-
-        <SolidColorBrush x:Key="SliderTrackFill" Color="#363636"/>
-        <SolidColorBrush x:Key="SliderTrackFillPointerOver" Color="#404040"/>
-        <SolidColorBrush x:Key="SliderTrackFillPressed" Color="#404040"/>
-        <SolidColorBrush x:Key="SliderThumbBackground" Color="#4fc3f7"/>
-        <SolidColorBrush x:Key="SliderThumbBackgroundPointerOver" Color="#6fcef9"/>
-        <SolidColorBrush x:Key="SliderThumbBackgroundPressed" Color="#3ab0de"/>
     </UserControl.Resources>
 
     <Grid>
@@ -46,75 +36,6 @@
 
             <Canvas x:Name="NodesCanvas" />
         </Canvas>
-
-        <Border Background="{StaticResource SideBar}"
-                BorderBrush="{StaticResource Separator}"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="16"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Top"
-                Margin="20"
-                MinWidth="250">
-            <StackPanel Spacing="12">
-                <TextBlock Text="Graph Controls"
-                          FontSize="16"
-                          FontWeight="SemiBold"
-                          Foreground="{StaticResource TextPrimary}"/>
-
-                <CheckBox x:Name="ShowExplicitLinksCheckbox"
-                         Content="Explicit Links"
-                         IsChecked="True"
-                         Foreground="{StaticResource TextPrimary}"
-                         Checked="OnSettingsChanged"
-                         Unchecked="OnSettingsChanged"/>
-
-                <CheckBox x:Name="ShowSemanticLinksCheckbox"
-                         Content="Semantic Links"
-                         IsChecked="True"
-                         Foreground="{StaticResource TextPrimary}"
-                         Checked="OnSettingsChanged"
-                         Unchecked="OnSettingsChanged"/>
-
-                <StackPanel Spacing="6">
-                    <TextBlock Text="Semantic Threshold"
-                              FontSize="12"
-                              Foreground="{StaticResource TextSecondary}"/>
-                    <Slider x:Name="SemanticThresholdSlider"
-                           Minimum="0"
-                           Maximum="1"
-                           Value="0.3"
-                           StepFrequency="0.05"
-                           ValueChanged="OnSettingsChanged"/>
-                    <TextBlock x:Name="SemanticThresholdText"
-                              FontSize="11"
-                              Foreground="{StaticResource TextSecondary}"
-                              HorizontalAlignment="Right"/>
-                </StackPanel>
-
-                <StackPanel Spacing="6">
-                    <TextBlock Text="TF-IDF Threshold"
-                              FontSize="12"
-                              Foreground="{StaticResource TextSecondary}"/>
-                    <Slider x:Name="TfidfThresholdSlider"
-                           Minimum="0"
-                           Maximum="1"
-                           Value="0.2"
-                           StepFrequency="0.05"
-                           ValueChanged="OnSettingsChanged"/>
-                    <TextBlock x:Name="TfidfThresholdText"
-                              FontSize="11"
-                              Foreground="{StaticResource TextSecondary}"
-                              HorizontalAlignment="Right"/>
-                </StackPanel>
-
-                <Button x:Name="ResetLayoutButton"
-                       Content="Reset Layout"
-                       HorizontalAlignment="Stretch"
-                       Style="{StaticResource PrimaryButtonStyle}"
-                       Click="OnResetLayoutClicked"/>
-            </StackPanel>
-        </Border>
 
         <Border x:Name="LoadingOverlay"
                 Visibility="Collapsed"

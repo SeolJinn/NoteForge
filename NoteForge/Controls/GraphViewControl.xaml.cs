@@ -12,6 +12,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
+using NoteForge.Configuration;
 using NoteForge.Handlers.Graph;
 using NoteForge.Models;
 
@@ -38,18 +39,6 @@ public sealed partial class GraphViewControl : UserControl
         _mediator = App.Mediator;
         _logger = App.Services.GetRequiredService<ILogger<GraphViewControl>>();
         _simulator.Tick += OnSimulatorTick;
-
-        SemanticThresholdSlider.ValueChanged += (s, e) =>
-        {
-            SemanticThresholdText.Text = $"{(int)(SemanticThresholdSlider.Value * 100)}%";
-        };
-        TfidfThresholdSlider.ValueChanged += (s, e) =>
-        {
-            TfidfThresholdText.Text = $"{(int)(TfidfThresholdSlider.Value * 100)}%";
-        };
-
-        SemanticThresholdText.Text = $"{(int)(SemanticThresholdSlider.Value * 100)}%";
-        TfidfThresholdText.Text = $"{(int)(TfidfThresholdSlider.Value * 100)}%";
     }
 
     public async Task LoadGraphAsync(List<Note> notes)
@@ -58,7 +47,10 @@ public sealed partial class GraphViewControl : UserControl
 
         try
         {
-            UpdateSettingsFromUI();
+            _settings.SemanticThreshold = OllamaSettings.GraphSemanticThreshold;
+            _settings.TfidfThreshold = OllamaSettings.GraphTfidfThreshold;
+            _settings.ShowExplicitLinks = OllamaSettings.GraphShowExplicitLinks;
+            _settings.ShowSemanticLinks = OllamaSettings.GraphShowSemanticLinks;
             _graphData = await _mediator.Send(new BuildGraphQueryRequest(notes, _settings));
 
             _simulator.Configure(_graphData, _settings);
@@ -274,38 +266,6 @@ public sealed partial class GraphViewControl : UserControl
                 node.Y *= scaleY;
             }
         }
-    }
-
-    private async void OnSettingsChanged(object sender, RoutedEventArgs e)
-    {
-        UpdateSettingsFromUI();
-
-        List<Note> notes = [.. _graphData.Nodes.Select(n => n.Note)];
-        if (notes.Count > 0)
-        {
-            await LoadGraphAsync(notes);
-        }
-    }
-
-    private void UpdateSettingsFromUI()
-    {
-        if (ShowExplicitLinksCheckbox is not null)
-            _settings.ShowExplicitLinks = ShowExplicitLinksCheckbox.IsChecked ?? true;
-
-        if (ShowSemanticLinksCheckbox is not null)
-            _settings.ShowSemanticLinks = ShowSemanticLinksCheckbox.IsChecked ?? true;
-
-        if (SemanticThresholdSlider is not null)
-            _settings.SemanticThreshold = (float)SemanticThresholdSlider.Value;
-
-        if (TfidfThresholdSlider is not null)
-            _settings.TfidfThreshold = (float)TfidfThresholdSlider.Value;
-    }
-
-    private void OnResetLayoutClicked(object sender, RoutedEventArgs e)
-    {
-        _simulator.InitializeNodePositions(GraphCanvas.ActualWidth, GraphCanvas.ActualHeight);
-        _simulator.Start();
     }
 
     public void Cleanup()

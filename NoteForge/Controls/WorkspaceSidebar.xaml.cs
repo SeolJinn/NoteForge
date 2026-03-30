@@ -4,9 +4,11 @@ using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using NoteForge.Configuration;
 using NoteForge.Interfaces;
 using NoteForge.Models;
 using NoteForge.Services;
+using NoteForge.Services.Search;
 
 namespace NoteForge.Controls;
 
@@ -24,7 +26,7 @@ public sealed partial class WorkspaceSidebar : UserControl
     public event EventHandler? ManageVaultsRequested;
     public event EventHandler? CreateNoteRequested;
     public event EventHandler<Folder?>? CreateFolderRequested;
-    public event EventHandler<Folder>? RenameFolderRequested;
+    public event EventHandler<(Folder Folder, string NewName)>? RenameFolderRequested;
     public event EventHandler<Folder>? DeleteFolderRequested;
     public event EventHandler<(Note Note, Folder TargetFolder)>? NoteMovedToFolder;
     public event EventHandler? SettingsRequested;
@@ -33,7 +35,9 @@ public sealed partial class WorkspaceSidebar : UserControl
     public event EventHandler<Note>? DeleteNoteRequested;
 
     private readonly FolderTreeService _folderTreeService;
-    private readonly ISemanticSearchStrategy _searchStrategy;
+    private readonly ISemanticSearchStrategy _semanticSearch;
+    private readonly SubstringSearchStrategy _substringSearch;
+    private ISearchStrategy<IEnumerable<Note>, SearchResult> _activeSearch;
     private Folder? _rootFolder;
     private SectionView? _favoritesView;
     private List<Note> _allNotes = [];
@@ -43,7 +47,30 @@ public sealed partial class WorkspaceSidebar : UserControl
     {
         InitializeComponent();
         _folderTreeService = App.Services.GetRequiredService<FolderTreeService>();
-        _searchStrategy = App.Services.GetRequiredService<ISemanticSearchStrategy>();
+        _semanticSearch = App.Services.GetRequiredService<ISemanticSearchStrategy>();
+        _substringSearch = App.Services.GetRequiredService<SubstringSearchStrategy>();
+        _activeSearch = OllamaSettings.AiEnabled ? _semanticSearch : _substringSearch;
+        OllamaSettings.AiEnabledChanged += OnAiEnabledChanged;
+        Unloaded += (_, _) => OllamaSettings.AiEnabledChanged -= OnAiEnabledChanged;
+    }
+
+    private void OnAiEnabledChanged()
+    {
+        var embeddingService = App.Services.GetRequiredService<IEmbeddingService>();
+
+        if (OllamaSettings.AiEnabled)
+        {
+            _ = embeddingService.StartBackgroundGenerationAsync(_allNotes);
+        }
+        else
+        {
+            embeddingService.CancelGeneration();
+        }
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            _activeSearch = OllamaSettings.AiEnabled ? _semanticSearch : _substringSearch;
+        });
     }
 
     public void LoadFolders(Folder rootFolder, NoteSection? favoritesSection)
@@ -152,8 +179,11 @@ public sealed partial class WorkspaceSidebar : UserControl
     public void LoadNotesForSearch(List<Note> notes)
     {
         _allNotes = notes;
-        _searchStrategy.InvalidateIndex();
-        _searchStrategy.InvalidateEmbeddingsCache();
+        if (OllamaSettings.AiEnabled)
+        {
+            _semanticSearch.InvalidateIndex();
+            _semanticSearch.InvalidateEmbeddingsCache();
+        }
     }
 
     public void SetViewMode(SidebarViewMode mode)
@@ -223,7 +253,7 @@ public sealed partial class WorkspaceSidebar : UserControl
         }
 
         ShowResults();
-        var results = await _searchStrategy.SearchAsync(_allNotes, query);
+        var results = await _activeSearch.SearchAsync(_allNotes, query);
         SearchResultsControl.SetResults(results);
     }
 
@@ -272,6 +302,12 @@ public sealed partial class WorkspaceSidebar : UserControl
     private void OnCreateFolderClicked(object sender, RoutedEventArgs e)
     {
         CreateFolderRequested?.Invoke(this, null);
+    }
+
+    private void OnEmptySpaceTapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+    {
+        if (e.OriginalSource is not TextBox)
+            FoldersContainer.Focus(FocusState.Programmatic);
     }
 
     private void OnRootDragOver(object sender, Microsoft.UI.Xaml.DragEventArgs e)
@@ -364,7 +400,10 @@ public sealed partial class WorkspaceSidebar : UserControl
             NoteSelected?.Invoke(this, note);
         }
 
-        textBox.LostFocus += (s, ev) => CommitRename();
+        textBox.LostFocus += (s, ev) =>
+        {
+            if (!IsFocusInPopup(textBox)) CommitRename();
+        };
         textBox.PreviewKeyDown += (s, ev) =>
         {
             if (ev.Key is Windows.System.VirtualKey.Enter)
@@ -403,5 +442,17 @@ public sealed partial class WorkspaceSidebar : UserControl
         {
             _folderTreeService.RestoreExpandedStates(_rootFolder, states);
         }
+    }
+
+    private static bool IsFocusInPopup(UIElement reference)
+    {
+        if (reference.XamlRoot is null) return false;
+        var focused = Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(reference.XamlRoot) as DependencyObject;
+        while (focused is not null)
+        {
+            if (focused is Microsoft.UI.Xaml.Controls.Primitives.Popup) return true;
+            focused = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(focused);
+        }
+        return false;
     }
 }

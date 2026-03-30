@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using NoteForge.Configuration;
 using NoteForge.Services;
 
 namespace NoteForge.Controls;
@@ -34,6 +35,9 @@ public sealed partial class NoteEditor : UserControl
             return;
         _initialized = true;
 
+        GenerateSummaryButton.Visibility = OllamaSettings.AiEnabled ? Visibility.Visible : Visibility.Collapsed;
+        OllamaSettings.AiEnabledChanged += OnAiEnabledChanged;
+
         _interopService = App.Services.GetRequiredService<EditorInteropService>();
         _interopService.ContentChanged += OnInteropContentChanged;
         _interopService.LinkClicked += OnInteropLinkClicked;
@@ -44,6 +48,7 @@ public sealed partial class NoteEditor : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
+        OllamaSettings.AiEnabledChanged -= OnAiEnabledChanged;
         if (_interopService is not null)
         {
             _interopService.ContentChanged -= OnInteropContentChanged;
@@ -53,6 +58,16 @@ public sealed partial class NoteEditor : UserControl
             _interopService = null;
         }
         _initialized = false;
+    }
+
+    private void OnAiEnabledChanged()
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            GenerateSummaryButton.Visibility = OllamaSettings.AiEnabled ? Visibility.Visible : Visibility.Collapsed;
+            if (!OllamaSettings.AiEnabled)
+                HideAiSummary();
+        });
     }
 
     private void OnInteropContentChanged(object? sender, EventArgs e)
@@ -156,4 +171,5 @@ public sealed partial class NoteEditor : UserControl
     {
         CloseSummaryRequested?.Invoke(this, EventArgs.Empty);
     }
+
 }

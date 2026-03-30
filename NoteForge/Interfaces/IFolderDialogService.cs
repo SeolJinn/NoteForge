@@ -6,7 +6,6 @@ namespace NoteForge.Interfaces;
 public interface IFolderDialogService
 {
     Task<string?> ShowCreateFolderDialogAsync(XamlRoot xamlRoot);
-    Task<string?> ShowRenameFolderDialogAsync(string currentName, XamlRoot xamlRoot);
     Task<bool> ShowDeleteFolderDialogAsync(string folderName, XamlRoot xamlRoot);
     Task<bool> ShowDeleteNoteDialogAsync(string noteName, XamlRoot xamlRoot);
 }

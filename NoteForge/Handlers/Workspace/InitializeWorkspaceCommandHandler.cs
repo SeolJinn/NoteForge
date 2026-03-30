@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
+using NoteForge.Configuration;
 using NoteForge.Handlers.Notes;
 using NoteForge.Interfaces;
 
@@ -21,28 +22,34 @@ public sealed class InitializeWorkspaceCommandHandler(
         if (!noteService.IsConfigured)
             return false;
 
-        var appDataDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "NoteForge",
-            "Embeddings");
+        if (OllamaSettings.AiEnabled)
+        {
+            var appDataDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "NoteForge",
+                "Embeddings");
 
-        Directory.CreateDirectory(appDataDir);
+            Directory.CreateDirectory(appDataDir);
 
-        var vaultPathHash = Convert.ToHexString(
-            System.Security.Cryptography.SHA256.HashData(
-                System.Text.Encoding.UTF8.GetBytes(noteService.CurrentNotebookPath)))[..16];
+            var vaultPathHash = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(noteService.CurrentNotebookPath)))[..16];
 
-        var dbPath = Path.Combine(appDataDir, $"{vaultPathHash}.db");
-        embeddingService.CancelGeneration();
-        await embeddingRepository.InitializeAsync(dbPath);
+            var dbPath = Path.Combine(appDataDir, $"{vaultPathHash}.db");
+            embeddingService.CancelGeneration();
+            await embeddingRepository.InitializeAsync(dbPath);
+        }
 
         if (tabManager.Tabs.Count is 0)
         {
             tabManager.OpenNewTab();
         }
 
-        var notes = (await mediator.Send(new GetNotesQueryRequest(), cancellationToken)).ToList();
-        _ = embeddingService.StartBackgroundGenerationAsync(notes, cancellationToken);
+        if (OllamaSettings.AiEnabled)
+        {
+            var notes = (await mediator.Send(new GetNotesQueryRequest(), cancellationToken)).ToList();
+            _ = embeddingService.StartBackgroundGenerationAsync(notes, cancellationToken);
+        }
 
         return true;
     }

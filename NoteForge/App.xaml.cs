@@ -58,6 +58,7 @@ public partial class App : Application
         services.AddSingleton<ISemanticSearchStrategy, SemanticSearchStrategy>();
         services.AddSingleton<EmbeddingDebugHelper>();
         services.AddSingleton<TfidfCalculator>();
+        services.AddSingleton<SubstringSearchStrategy>();
 
         services.AddMediator();
 
