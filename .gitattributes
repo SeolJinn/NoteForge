@@ -105,3 +105,7 @@
 .gitattributes export-ignore
 .gitignore     export-ignore
 .gitkeep       export-ignore
+
+# Generated editor bundle — exclude from linguist stats
+editor/dist/**                         linguist-generated=true
+NoteForge/Templates/InlineEditor.html  linguist-generated=true
