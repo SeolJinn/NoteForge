@@ -42,7 +42,8 @@ ${katexCss}
   html, body { height: 100%; background: var(--editor-bg); color: var(--editor-fg); }
   #editor { height: 100%; }
   .cm-editor { height: 100%; }
-  .cm-scroller { overflow: auto; }
+  .cm-scroller { overflow: auto; scrollbar-width: thin; scrollbar-color: #3f3f3f var(--editor-bg); }
+  .cm-scroller:hover { scrollbar-color: #555555 var(--editor-bg); }
 </style>
 </head>
 <body>

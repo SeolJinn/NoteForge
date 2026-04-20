@@ -57,6 +57,7 @@ public sealed partial class WorkspacePage : Page
             _tabManager.ActiveTab.DisplayName = _selectedNote.Filename;
             _tabManager.ActiveTab.FilePath = _selectedNote.FilePath;
             await LoadNotes();
+            Sidebar.SetSelectedNote(_selectedNote);
         }
         else if (!result.Success)
         {

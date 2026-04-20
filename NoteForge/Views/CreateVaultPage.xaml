@@ -29,7 +29,7 @@
         <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
     </local:VaultPageBase.Resources>
 
-    <StackPanel Spacing="20" Padding="30" VerticalAlignment="Center">
+    <StackPanel Spacing="20" Padding="30" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="720">
         <TextBlock Text="Create local vault" 
                    FontSize="32" 
                    FontWeight="Bold" 

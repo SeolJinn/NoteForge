@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.Extensions.Logging;
+using NoteForge.Configuration;
 using NoteForge.Interfaces;
 using NoteForge.Models;
 using NoteForge.Services.Embeddings;
@@ -53,7 +54,7 @@ public partial class BuildGraphQueryHandler(
             ? await BuildExplicitEdgesAsync(notes, nodeMap)
             : [];
 
-        var semanticEdges = settings.ShowSemanticLinks
+        var semanticEdges = settings.ShowSemanticLinks && OllamaSettings.AiEnabled
             ? await BuildSemanticEdgesAsync(notes, nodeMap, settings, explicitEdges)
             : [];
 

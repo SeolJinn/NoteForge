@@ -116,12 +116,12 @@ public sealed partial class GraphViewControl : UserControl
             Stroke = edge.Type switch
             {
                 EdgeType.Explicit => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 195, 247)),
-                EdgeType.Semantic => new SolidColorBrush(Colors.MediumPurple),
+                EdgeType.Semantic => new SolidColorBrush(Windows.UI.Color.FromArgb(255, 196, 141, 255)),
                 EdgeType.Hybrid => new SolidColorBrush(Colors.Cyan),
                 _ => new SolidColorBrush(Colors.Gray)
             },
-            StrokeThickness = edge.Type == EdgeType.Explicit ? 2.0 : 1.0,
-            Opacity = Math.Clamp(edge.Strength, 0.3, 0.9)
+            StrokeThickness = edge.Type == EdgeType.Explicit ? 2.0 : 1.75,
+            Opacity = Math.Clamp(edge.Strength, 0.6, 1.0)
         };
 
         PropertyChangedEventHandler handler = (s, e) =>

@@ -47,6 +47,7 @@ public sealed partial class WorkspacePage : Page
         TabBarControl.SetItemsSource(_tabManager.Tabs);
 
         _tabManager.ActiveTabChanged += OnActiveTabChanged;
+        Configuration.OllamaSettings.AiEnabledChanged += OnAiEnabledChanged;
 
         Loaded += WorkspacePage_Loaded;
         Unloaded += WorkspacePage_Unloaded;
@@ -58,8 +59,20 @@ public sealed partial class WorkspacePage : Page
     {
         _summaryCts?.Cancel();
         _summaryCts?.Dispose();
+        Configuration.OllamaSettings.AiEnabledChanged -= OnAiEnabledChanged;
         GraphView.Cleanup();
     }
+
+    private void OnAiEnabledChanged() =>
+        DispatcherQueue.TryEnqueue(async () =>
+        {
+            await _mediator.Send(new InitializeWorkspaceCommand());
+            if (GraphView.Visibility is Visibility.Visible)
+            {
+                List<Note> allNotes = [.. await _mediator.Send(new GetNotesQueryRequest())];
+                await GraphView.LoadGraphAsync(allNotes);
+            }
+        });
 
     private async Task LoadNotes()
     {
