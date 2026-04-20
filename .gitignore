@@ -23,3 +23,6 @@ Thumbs.db
 # Editor build
 editor/node_modules/
 editor/dist/editor-bundle.js
+
+# Installer output
+dist/
