@@ -26,3 +26,6 @@ editor/dist/editor-bundle.js
 
 # Installer output
 dist/
+
+# Vendored Windows App Runtime installer (download from Microsoft)
+redist/

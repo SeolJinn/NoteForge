@@ -28,6 +28,7 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 [Files]
 Source: "NoteForge\bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "redist\WindowsAppRuntimeInstall-x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
+Source: "redist\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Icons]
 Name: "{group}\NoteForge"; Filename: "{app}\NoteForge.exe"
@@ -36,4 +37,5 @@ Name: "{autodesktop}\NoteForge"; Filename: "{app}\NoteForge.exe"; Tasks: desktop
 
 [Run]
 Filename: "{tmp}\WindowsAppRuntimeInstall-x64.exe"; Parameters: "--quiet"; StatusMsg: "Installing Windows App Runtime (required by NoteForge)..."; Flags: waituntilterminated
+Filename: "{tmp}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"; StatusMsg: "Installing WebView2 Runtime (required by NoteForge)..."; Flags: waituntilterminated
 Filename: "{app}\NoteForge.exe"; Description: "Launch NoteForge"; Flags: nowait postinstall skipifsilent

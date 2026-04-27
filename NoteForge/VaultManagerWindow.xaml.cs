@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Navigation;
@@ -29,7 +30,7 @@ public sealed partial class VaultManagerWindow : Window
         var dpi = GetDpiForWindow(hwnd);
         var scale = dpi / 96.0;
         appWindow.Resize(new Windows.Graphics.SizeInt32((int)(800 * scale), (int)(450 * scale)));
-        appWindow.SetIcon("Assets/app.ico");
+        appWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
 
         SetRoundedCorners(hwnd);
         

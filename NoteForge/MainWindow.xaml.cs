@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using Microsoft.UI.Xaml;
 using NoteForge.Views;
 
@@ -8,7 +10,7 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         this.InitializeComponent();
-        AppWindow.SetIcon("Assets/app.ico");
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
         RootFrame.Navigate(typeof(VaultPage));
     }
 }
