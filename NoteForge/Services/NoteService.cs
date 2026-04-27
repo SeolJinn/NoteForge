@@ -88,15 +88,9 @@ public class NoteService : INoteService
         SetSetting(RecentVaultsKey, json);
     }
 
-    private static void SetSetting(string key, string value)
-    {
-        var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
-        localSettings.Values[key] = value;
-    }
+    private static void SetSetting(string key, string value) =>
+        LocalSettingsStore.SetString(key, value);
 
-    private static string GetSetting(string key, string defaultValue)
-    {
-        var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
-        return localSettings.Values.TryGetValue(key, out var value) ? (string)value : defaultValue;
-    }
+    private static string GetSetting(string key, string defaultValue) =>
+        LocalSettingsStore.GetString(key) ?? defaultValue;
 }

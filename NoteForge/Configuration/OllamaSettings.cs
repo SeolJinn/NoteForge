@@ -1,5 +1,5 @@
 using System;
-using Windows.Storage;
+using NoteForge.Services;
 
 namespace NoteForge.Configuration;
 
@@ -18,36 +18,34 @@ public static class OllamaSettings
     private const string DefaultModel = "ibm/granite4:1b-h";
     private const string DefaultEmbeddingModel = "nomic-embed-text";
 
-    private static ApplicationDataContainer Settings => ApplicationData.Current.LocalSettings;
-
     public static event Action? AiEnabledChanged;
 
     public static string OllamaUrl
     {
-        get => Settings.Values[OllamaUrlKey] as string ?? DefaultUrl;
-        set => Settings.Values[OllamaUrlKey] = value;
+        get => LocalSettingsStore.GetString(OllamaUrlKey) ?? DefaultUrl;
+        set => LocalSettingsStore.SetString(OllamaUrlKey, value);
     }
 
     public static string OllamaModel
     {
-        get => Settings.Values[OllamaModelKey] as string ?? DefaultModel;
-        set => Settings.Values[OllamaModelKey] = value;
+        get => LocalSettingsStore.GetString(OllamaModelKey) ?? DefaultModel;
+        set => LocalSettingsStore.SetString(OllamaModelKey, value);
     }
 
     public static string EmbeddingModel
     {
-        get => Settings.Values[EmbeddingModelKey] as string ?? DefaultEmbeddingModel;
-        set => Settings.Values[EmbeddingModelKey] = value;
+        get => LocalSettingsStore.GetString(EmbeddingModelKey) ?? DefaultEmbeddingModel;
+        set => LocalSettingsStore.SetString(EmbeddingModelKey, value);
     }
 
     public static bool AiEnabled
     {
-        get => Settings.Values[AiEnabledKey] as bool? ?? false;
+        get => LocalSettingsStore.GetBool(AiEnabledKey) ?? false;
         set
         {
             if (AiEnabled != value)
             {
-                Settings.Values[AiEnabledKey] = value;
+                LocalSettingsStore.SetBool(AiEnabledKey, value);
                 AiEnabledChanged?.Invoke();
             }
         }
@@ -55,25 +53,25 @@ public static class OllamaSettings
 
     public static float GraphSemanticThreshold
     {
-        get => Settings.Values[GraphSemanticThresholdKey] is double d ? (float)d : 0.1f;
-        set => Settings.Values[GraphSemanticThresholdKey] = (double)value;
+        get => (float)(LocalSettingsStore.GetDouble(GraphSemanticThresholdKey) ?? 0.1);
+        set => LocalSettingsStore.SetDouble(GraphSemanticThresholdKey, value);
     }
 
     public static float GraphTfidfThreshold
     {
-        get => Settings.Values[GraphTfidfThresholdKey] is double d ? (float)d : 0.1f;
-        set => Settings.Values[GraphTfidfThresholdKey] = (double)value;
+        get => (float)(LocalSettingsStore.GetDouble(GraphTfidfThresholdKey) ?? 0.1);
+        set => LocalSettingsStore.SetDouble(GraphTfidfThresholdKey, value);
     }
 
     public static bool GraphShowExplicitLinks
     {
-        get => Settings.Values[GraphShowExplicitLinksKey] as bool? ?? true;
-        set => Settings.Values[GraphShowExplicitLinksKey] = value;
+        get => LocalSettingsStore.GetBool(GraphShowExplicitLinksKey) ?? true;
+        set => LocalSettingsStore.SetBool(GraphShowExplicitLinksKey, value);
     }
 
     public static bool GraphShowSemanticLinks
     {
-        get => Settings.Values[GraphShowSemanticLinksKey] as bool? ?? true;
-        set => Settings.Values[GraphShowSemanticLinksKey] = value;
+        get => LocalSettingsStore.GetBool(GraphShowSemanticLinksKey) ?? true;
+        set => LocalSettingsStore.SetBool(GraphShowSemanticLinksKey, value);
     }
 }

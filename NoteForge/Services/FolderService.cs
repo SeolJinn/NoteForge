@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using NoteForge.Helpers;
 using NoteForge.Interfaces;
 using NoteForge.Models;
-using Windows.Storage;
 
 namespace NoteForge.Services;
 
@@ -16,13 +15,11 @@ public class FolderService : IFolderService
 {
     private const string ExpandedFoldersKey = "ExpandedFolders";
 
-    private readonly ApplicationDataContainer _localSettings;
     private readonly INoteService _noteService;
     private readonly ILogger<FolderService> _logger;
 
     public FolderService(INoteService noteService, ILogger<FolderService> logger)
     {
-        _localSettings = ApplicationData.Current.LocalSettings;
         _noteService = noteService;
         _logger = logger;
     }
@@ -220,7 +217,7 @@ public class FolderService : IFolderService
         try
         {
             var json = JsonSerializer.Serialize(expandedPaths);
-            _localSettings.Values[ExpandedFoldersKey] = json;
+            LocalSettingsStore.SetString(ExpandedFoldersKey, json);
         }
         catch (Exception ex)
         {
@@ -245,7 +242,8 @@ public class FolderService : IFolderService
     {
         try
         {
-            if (_localSettings.Values.TryGetValue(ExpandedFoldersKey, out var value) && value is string json)
+            var json = LocalSettingsStore.GetString(ExpandedFoldersKey);
+            if (!string.IsNullOrEmpty(json))
             {
                 var expandedPaths = JsonSerializer.Deserialize<List<string>>(json);
                 if (expandedPaths is not null)
