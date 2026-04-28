@@ -7,7 +7,7 @@ using NoteForge.Interfaces;
 namespace NoteForge.Services.Embeddings;
 
 public class EmbeddingDebugHelper(
-    IOllamaService ollamaService,
+    IAiService aiService,
     IEmbeddingRepository embeddingRepository,
     ILogger<EmbeddingDebugHelper> logger)
 {
@@ -24,24 +24,24 @@ public class EmbeddingDebugHelper(
 
     private async Task TestOllamaConnection()
     {
-        logger.LogInformation("1. Testing Ollama connection...");
+        logger.LogInformation("1. Testing AI provider connection...");
         try
         {
-            var testEmbedding = await ollamaService.GenerateEmbeddingAsync("test");
+            var testEmbedding = await aiService.GenerateEmbeddingAsync("test");
             if (testEmbedding is null)
             {
-                logger.LogError("✗ Ollama returned null embedding - model may not be loaded");
+                logger.LogError("✗ AI provider returned null embedding - model may not be loaded");
             }
             else
             {
-                logger.LogInformation($"✓ Ollama connected - embedding dimension: {testEmbedding.Length}");
+                logger.LogInformation($"✓ AI provider connected - embedding dimension: {testEmbedding.Length}");
                 logger.LogInformation($"  First 5 values: [{string.Join(", ", testEmbedding.Take(5).Select(v => v.ToString("F4")))}]");
                 logger.LogInformation($"  Magnitude: {Math.Sqrt(testEmbedding.Sum(v => v * v)):F4}");
             }
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "✗ Ollama connection failed");
+            logger.LogError(ex, "✗ AI provider connection failed");
         }
     }
 
@@ -53,9 +53,9 @@ public class EmbeddingDebugHelper(
         var text2 = "Markdown is a lightweight markup language";
         var text3 = "The weather is sunny today";
 
-        var emb1 = await ollamaService.GenerateEmbeddingAsync(text1);
-        var emb2 = await ollamaService.GenerateEmbeddingAsync(text2);
-        var emb3 = await ollamaService.GenerateEmbeddingAsync(text3);
+        var emb1 = await aiService.GenerateEmbeddingAsync(text1);
+        var emb2 = await aiService.GenerateEmbeddingAsync(text2);
+        var emb3 = await aiService.GenerateEmbeddingAsync(text3);
 
         if (emb1 is not null && emb2 is not null && emb3 is not null)
         {

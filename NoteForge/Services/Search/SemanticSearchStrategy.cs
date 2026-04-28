@@ -11,11 +11,11 @@ using NoteForge.Services.Embeddings;
 namespace NoteForge.Services.Search;
 
 public class SemanticSearchStrategy(
-    IOllamaService ollamaService,
+    IAiService aiService,
     IEmbeddingRepository embeddingRepository,
     ILogger<SemanticSearchStrategy> logger) : ISemanticSearchStrategy
 {
-    private readonly IOllamaService _ollamaService = ollamaService;
+    private readonly IAiService _aiService = aiService;
     private readonly ILogger<SemanticSearchStrategy> _logger = logger;
     private readonly TfidfCalculator _tfidfCalculator = new();
     private bool _tfidfIndexDirty = true;
@@ -61,7 +61,7 @@ public class SemanticSearchStrategy(
                 _logger.LogDebug("Rebuilt TF-IDF index for {Count} notes", notesList.Count);
             }
 
-            var queryEmbedding = await _ollamaService.GenerateEmbeddingAsync(query);
+            var queryEmbedding = await _aiService.GenerateEmbeddingAsync(query);
             if (queryEmbedding is null)
             {
                 _logger.LogWarning("Failed to generate embedding for query: {Query}", query);

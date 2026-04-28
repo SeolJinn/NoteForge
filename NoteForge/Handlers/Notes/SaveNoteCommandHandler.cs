@@ -30,7 +30,7 @@ public class SaveNoteCommandHandler(
             File.Move(tempPath, targetPath, overwrite: true);
             semanticSearch.InvalidateIndex();
 
-            if (OllamaSettings.AiEnabled)
+            if (AiSettings.IsAiEnabled)
                 embeddingService.QueueEmbeddingUpdate(request.Note, onComplete: semanticSearch.InvalidateEmbeddingsCache);
 
             return true;

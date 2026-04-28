@@ -54,7 +54,7 @@ public partial class BuildGraphQueryHandler(
             ? await BuildExplicitEdgesAsync(notes, nodeMap)
             : [];
 
-        var semanticEdges = settings.ShowSemanticLinks && OllamaSettings.AiEnabled
+        var semanticEdges = settings.ShowSemanticLinks && AiSettings.IsAiEnabled
             ? await BuildSemanticEdgesAsync(notes, nodeMap, settings, explicitEdges)
             : [];
 

@@ -13,5 +13,11 @@ public interface IEmbeddingRepository : IDisposable
     Task<EmbeddingRecord?> GetEmbeddingAsync(string filePath);
     Task<List<EmbeddingRecord>> GetAllEmbeddingsAsync();
     Task DeleteEmbeddingAsync(string filePath);
+    Task UpdateEmbeddingPathAsync(string oldPath, string newPath);
     Task<bool> IsEmbeddingStaleAsync(string filePath, string currentContentHash);
+    Task<EmbeddingMetadata?> GetMetadataAsync();
+    Task SetMetadataAsync(string providerName, int dimension, string modelId);
+    Task ClearAllAsync();
 }
+
+public sealed record EmbeddingMetadata(string ProviderName, int Dimension, string ModelId);

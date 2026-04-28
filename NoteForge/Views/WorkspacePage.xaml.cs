@@ -47,7 +47,7 @@ public sealed partial class WorkspacePage : Page
         TabBarControl.SetItemsSource(_tabManager.Tabs);
 
         _tabManager.ActiveTabChanged += OnActiveTabChanged;
-        Configuration.OllamaSettings.AiEnabledChanged += OnAiEnabledChanged;
+        Configuration.AiSettings.ActiveProviderChanged += OnAiEnabledChanged;
 
         Loaded += WorkspacePage_Loaded;
         Unloaded += WorkspacePage_Unloaded;
@@ -59,7 +59,7 @@ public sealed partial class WorkspacePage : Page
     {
         _summaryCts?.Cancel();
         _summaryCts?.Dispose();
-        Configuration.OllamaSettings.AiEnabledChanged -= OnAiEnabledChanged;
+        Configuration.AiSettings.ActiveProviderChanged -= OnAiEnabledChanged;
         GraphView.Cleanup();
     }
 

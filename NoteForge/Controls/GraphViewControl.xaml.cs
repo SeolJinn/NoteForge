@@ -47,10 +47,10 @@ public sealed partial class GraphViewControl : UserControl
 
         try
         {
-            _settings.SemanticThreshold = OllamaSettings.GraphSemanticThreshold;
-            _settings.TfidfThreshold = OllamaSettings.GraphTfidfThreshold;
-            _settings.ShowExplicitLinks = OllamaSettings.GraphShowExplicitLinks;
-            _settings.ShowSemanticLinks = OllamaSettings.GraphShowSemanticLinks;
+            _settings.SemanticThreshold = AiSettings.GraphSemanticThreshold;
+            _settings.TfidfThreshold = AiSettings.GraphTfidfThreshold;
+            _settings.ShowExplicitLinks = AiSettings.GraphShowExplicitLinks;
+            _settings.ShowSemanticLinks = AiSettings.GraphShowSemanticLinks;
             _graphData = await _mediator.Send(new BuildGraphQueryRequest(notes, _settings));
 
             _simulator.Configure(_graphData, _settings);

@@ -22,7 +22,7 @@ public sealed class InitializeWorkspaceCommandHandler(
         if (!noteService.IsConfigured)
             return false;
 
-        if (OllamaSettings.AiEnabled)
+        if (AiSettings.IsAiEnabled)
         {
             var appDataDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -45,7 +45,7 @@ public sealed class InitializeWorkspaceCommandHandler(
             tabManager.OpenNewTab();
         }
 
-        if (OllamaSettings.AiEnabled)
+        if (AiSettings.IsAiEnabled)
         {
             var notes = (await mediator.Send(new GetNotesQueryRequest(), cancellationToken)).ToList();
             _ = embeddingService.StartBackgroundGenerationAsync(notes, cancellationToken);

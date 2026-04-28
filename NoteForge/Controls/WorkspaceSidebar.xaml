@@ -18,13 +18,13 @@
         <Grid Grid.Row="0">
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           Background="Transparent"
+                          AllowDrop="True"
+                          DragOver="OnRootDragOver"
+                          Drop="OnRootDrop"
                           Tapped="OnEmptySpaceTapped">
                 <StackPanel x:Name="FoldersContainer"
                             Background="Transparent"
-                            AllowDrop="True"
-                            IsTabStop="True"
-                            DragOver="OnRootDragOver"
-                            Drop="OnRootDrop">
+                            IsTabStop="True">
                     <StackPanel.ContextFlyout>
                         <MenuFlyout Placement="RightEdgeAlignedTop">
                             <MenuFlyout.MenuFlyoutPresenterStyle>

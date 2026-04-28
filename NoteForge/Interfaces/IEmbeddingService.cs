@@ -14,4 +14,5 @@ public interface IEmbeddingService
     Task GenerateEmbeddingForNoteAsync(Note note, CancellationToken cancellationToken = default);
     void QueueEmbeddingUpdate(Note note, string? oldPathToDelete = null, Action? onComplete = null);
     void CancelGeneration();
+    Task RegenerateAllAsync(IEnumerable<Note> notes, CancellationToken cancellationToken = default);
 }

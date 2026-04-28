@@ -25,7 +25,7 @@ public class EmbeddingRepository : IEmbeddingRepository
             await _connection.OpenAsync();
 
             var createTableCommand = _connection.CreateCommand();
-            createTableCommand.CommandText = @"
+            createTableCommand.CommandText = """
                 CREATE TABLE IF NOT EXISTS embeddings (
                     file_path TEXT PRIMARY KEY,
                     embedding BLOB NOT NULL,
@@ -35,8 +35,26 @@ public class EmbeddingRepository : IEmbeddingRepository
                     dimension INTEGER NOT NULL DEFAULT 768
                 );
                 CREATE INDEX IF NOT EXISTS idx_updated_at ON embeddings(updated_at);
-            ";
+                CREATE TABLE IF NOT EXISTS metadata (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    current_provider TEXT NOT NULL,
+                    current_dimension INTEGER NOT NULL,
+                    current_model_id TEXT NOT NULL DEFAULT ''
+                );
+            """;
             await createTableCommand.ExecuteNonQueryAsync();
+
+            var migrateMetadataCommand = _connection.CreateCommand();
+            migrateMetadataCommand.CommandText = """
+                SELECT COUNT(*) FROM pragma_table_info('metadata') WHERE name = 'current_model_id';
+            """;
+            var hasModelColumn = Convert.ToInt32(await migrateMetadataCommand.ExecuteScalarAsync()) > 0;
+            if (!hasModelColumn)
+            {
+                var alterCommand = _connection.CreateCommand();
+                alterCommand.CommandText = "ALTER TABLE metadata ADD COLUMN current_model_id TEXT NOT NULL DEFAULT '';";
+                await alterCommand.ExecuteNonQueryAsync();
+            }
         }
         finally
         {
@@ -162,6 +180,25 @@ public class EmbeddingRepository : IEmbeddingRepository
         }
     }
 
+    public async Task UpdateEmbeddingPathAsync(string oldPath, string newPath)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            if (_connection is null) return;
+
+            var command = _connection.CreateCommand();
+            command.CommandText = "UPDATE embeddings SET file_path = $newPath WHERE file_path = $oldPath";
+            command.Parameters.AddWithValue("$oldPath", oldPath);
+            command.Parameters.AddWithValue("$newPath", newPath);
+            await command.ExecuteNonQueryAsync();
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
     public async Task<bool> IsEmbeddingStaleAsync(string filePath, string currentContentHash)
     {
         await _lock.WaitAsync();
@@ -204,6 +241,73 @@ public class EmbeddingRepository : IEmbeddingRepository
             CreatedAt = DateTime.Parse(reader.GetString(3)),
             UpdatedAt = DateTime.Parse(reader.GetString(4))
         };
+    }
+
+    public async Task<EmbeddingMetadata?> GetMetadataAsync()
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            if (_connection is null) return null;
+
+            var command = _connection.CreateCommand();
+            command.CommandText = "SELECT current_provider, current_dimension, current_model_id FROM metadata WHERE id = 1";
+
+            using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                return new EmbeddingMetadata(reader.GetString(0), reader.GetInt32(1), reader.GetString(2));
+            }
+            return null;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    public async Task SetMetadataAsync(string providerName, int dimension, string modelId)
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            if (_connection is null) return;
+
+            var command = _connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO metadata (id, current_provider, current_dimension, current_model_id)
+                VALUES (1, $provider, $dimension, $modelId)
+                ON CONFLICT(id) DO UPDATE SET
+                    current_provider = $provider,
+                    current_dimension = $dimension,
+                    current_model_id = $modelId
+            """;
+            command.Parameters.AddWithValue("$provider", providerName);
+            command.Parameters.AddWithValue("$dimension", dimension);
+            command.Parameters.AddWithValue("$modelId", modelId);
+            await command.ExecuteNonQueryAsync();
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    public async Task ClearAllAsync()
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            if (_connection is null) return;
+
+            var command = _connection.CreateCommand();
+            command.CommandText = "DELETE FROM embeddings; DELETE FROM metadata;";
+            await command.ExecuteNonQueryAsync();
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
 
     public void Dispose()

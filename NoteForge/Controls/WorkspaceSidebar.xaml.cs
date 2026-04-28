@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -42,6 +44,10 @@ public sealed partial class WorkspaceSidebar : UserControl
     private SectionView? _favoritesView;
     private List<Note> _allNotes = [];
     private SidebarViewMode _currentMode = SidebarViewMode.Folder;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _searchDebounceTimer;
+    private CancellationTokenSource? _searchInFlightCts;
+    private string _pendingSearchQuery = string.Empty;
+    private static readonly TimeSpan SearchDebounce = TimeSpan.FromMilliseconds(300);
 
     public WorkspaceSidebar()
     {
@@ -49,16 +55,16 @@ public sealed partial class WorkspaceSidebar : UserControl
         _folderTreeService = App.Services.GetRequiredService<FolderTreeService>();
         _semanticSearch = App.Services.GetRequiredService<ISemanticSearchStrategy>();
         _substringSearch = App.Services.GetRequiredService<SubstringSearchStrategy>();
-        _activeSearch = OllamaSettings.AiEnabled ? _semanticSearch : _substringSearch;
-        OllamaSettings.AiEnabledChanged += OnAiEnabledChanged;
-        Unloaded += (_, _) => OllamaSettings.AiEnabledChanged -= OnAiEnabledChanged;
+        _activeSearch = AiSettings.IsAiEnabled ? _semanticSearch : _substringSearch;
+        AiSettings.ActiveProviderChanged += OnAiEnabledChanged;
+        Unloaded += (_, _) => AiSettings.ActiveProviderChanged -= OnAiEnabledChanged;
     }
 
     private void OnAiEnabledChanged()
     {
         var embeddingService = App.Services.GetRequiredService<IEmbeddingService>();
 
-        if (OllamaSettings.AiEnabled)
+        if (AiSettings.IsAiEnabled)
         {
             _ = embeddingService.StartBackgroundGenerationAsync(_allNotes);
         }
@@ -69,7 +75,7 @@ public sealed partial class WorkspaceSidebar : UserControl
 
         DispatcherQueue.TryEnqueue(() =>
         {
-            _activeSearch = OllamaSettings.AiEnabled ? _semanticSearch : _substringSearch;
+            _activeSearch = AiSettings.IsAiEnabled ? _semanticSearch : _substringSearch;
         });
     }
 
@@ -179,7 +185,7 @@ public sealed partial class WorkspaceSidebar : UserControl
     public void LoadNotesForSearch(List<Note> notes)
     {
         _allNotes = notes;
-        if (OllamaSettings.AiEnabled)
+        if (AiSettings.IsAiEnabled)
         {
             _semanticSearch.InvalidateIndex();
             _semanticSearch.InvalidateEmbeddingsCache();
@@ -242,19 +248,55 @@ public sealed partial class WorkspaceSidebar : UserControl
     {
     }
 
-    private async void OnSearchTextChanged(object sender, TextChangedEventArgs e)
+    private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
     {
         var query = SearchTextBox.Text?.Trim() ?? string.Empty;
 
+        _searchInFlightCts?.Cancel();
+
         if (string.IsNullOrWhiteSpace(query))
         {
+            _searchDebounceTimer?.Stop();
+            _pendingSearchQuery = string.Empty;
             ShowSearchOptions();
             return;
         }
 
         ShowResults();
-        var results = await _activeSearch.SearchAsync(_allNotes, query);
-        SearchResultsControl.SetResults(results);
+
+        _pendingSearchQuery = query;
+
+        if (_searchDebounceTimer is null)
+        {
+            _searchDebounceTimer = DispatcherQueue.CreateTimer();
+            _searchDebounceTimer.IsRepeating = false;
+            _searchDebounceTimer.Interval = SearchDebounce;
+            _searchDebounceTimer.Tick += OnSearchDebounceTick;
+        }
+
+        _searchDebounceTimer.Stop();
+        _searchDebounceTimer.Start();
+    }
+
+    private async void OnSearchDebounceTick(Microsoft.UI.Dispatching.DispatcherQueueTimer timer, object args)
+    {
+        var query = _pendingSearchQuery;
+        if (string.IsNullOrWhiteSpace(query)) return;
+
+        var cts = new CancellationTokenSource();
+        _searchInFlightCts = cts;
+
+        try
+        {
+            var results = await _activeSearch.SearchAsync(_allNotes, query);
+
+            if (cts.IsCancellationRequested) return;
+
+            SearchResultsControl.SetResults(results);
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 
     private void ShowSearchOptions()

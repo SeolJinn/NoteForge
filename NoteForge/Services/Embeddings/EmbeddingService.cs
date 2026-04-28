@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -12,12 +13,15 @@ using NoteForge.Models;
 namespace NoteForge.Services.Embeddings;
 
 public class EmbeddingService(
-    IOllamaService ollamaService,
+    IAiService aiService,
     IEmbeddingRepository embeddingRepo,
     ILogger<EmbeddingService> logger) : IEmbeddingService
 {
+    private static readonly TimeSpan UpdateDebounce = TimeSpan.FromSeconds(5);
+
     private CancellationTokenSource? _backgroundCts;
     private int _isGenerating;
+    private readonly ConcurrentDictionary<string, object> _pendingUpdates = new();
 
     public event EventHandler<EmbeddingProgress>? ProgressChanged;
     public bool IsGenerating => Interlocked.CompareExchange(ref _isGenerating, 0, 0) is 1;
@@ -43,6 +47,18 @@ public class EmbeddingService(
 
             try
             {
+                try
+                {
+                    await embeddingRepo.SetMetadataAsync(
+                        NoteForge.Configuration.AiSettings.ActiveProvider.ToString(),
+                        aiService.EmbeddingDimension,
+                        GetActiveEmbeddingModelId());
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to set embedding metadata");
+                }
+
                 foreach (var note in notesList)
                 {
                     if (cts.Token.IsCancellationRequested)
@@ -119,7 +135,7 @@ public class EmbeddingService(
         logger.LogDebug("Generating embedding for {FileName} - Length: {Length} chars, Preview: {Preview}",
             note.Filename, text.Length, preview);
 
-        var embedding = await ollamaService.GenerateEmbeddingAsync(text, cancellationToken);
+        var embedding = await aiService.GenerateEmbeddingAsync(text, cancellationToken);
 
         if (embedding is not null)
         {
@@ -131,18 +147,53 @@ public class EmbeddingService(
         }
         else
         {
-            throw new InvalidOperationException("Failed to generate embedding from Ollama");
+            throw new InvalidOperationException("Failed to generate embedding.");
         }
     }
 
     public void QueueEmbeddingUpdate(Note note, string? oldPathToDelete = null, Action? onComplete = null)
     {
+        if (oldPathToDelete is not null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await embeddingRepo.DeleteEmbeddingAsync(oldPathToDelete);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to delete old embedding {FilePath}", oldPathToDelete);
+                }
+            });
+        }
+
+        var token = new object();
+        var key = note.FilePath;
+        _pendingUpdates[key] = token;
+
         _ = Task.Run(async () =>
         {
             try
             {
-                if (oldPathToDelete is not null)
-                    await embeddingRepo.DeleteEmbeddingAsync(oldPathToDelete);
+                await Task.Delay(UpdateDebounce);
+
+                if (!_pendingUpdates.TryGetValue(key, out var current) || current != token)
+                {
+                    return;
+                }
+                _pendingUpdates.TryRemove(new KeyValuePair<string, object>(key, token));
+
+                if (!string.IsNullOrWhiteSpace(note.Text) && note.Text.Length >= 10)
+                {
+                    var contentHash = ComputeContentHash(note);
+                    if (!await embeddingRepo.IsEmbeddingStaleAsync(note.FilePath, contentHash))
+                    {
+                        logger.LogDebug("Skipping embedding update — content unchanged: {FilePath}", note.FilePath);
+                        onComplete?.Invoke();
+                        return;
+                    }
+                }
 
                 await GenerateEmbeddingForNoteAsync(note);
                 onComplete?.Invoke();
@@ -162,6 +213,26 @@ public class EmbeddingService(
             _backgroundCts.Cancel();
         }
     }
+
+    public async Task RegenerateAllAsync(IEnumerable<Note> notes, CancellationToken cancellationToken = default)
+    {
+        CancelGeneration();
+        await embeddingRepo.ClearAllAsync();
+        await embeddingRepo.SetMetadataAsync(
+            NoteForge.Configuration.AiSettings.ActiveProvider.ToString(),
+            aiService.EmbeddingDimension,
+            GetActiveEmbeddingModelId());
+        await StartBackgroundGenerationAsync(notes, cancellationToken);
+    }
+
+    private static string GetActiveEmbeddingModelId() =>
+        NoteForge.Configuration.AiSettings.ActiveProvider switch
+        {
+            NoteForge.Services.Ai.AiProviderType.OpenAi => NoteForge.Configuration.AiSettings.OpenAiEmbeddingModel,
+            NoteForge.Services.Ai.AiProviderType.Gemini => NoteForge.Configuration.AiSettings.GeminiEmbeddingModel,
+            NoteForge.Services.Ai.AiProviderType.Ollama => NoteForge.Configuration.AiSettings.OllamaEmbeddingModel,
+            _ => string.Empty
+        };
 
     private static string BuildEmbeddingText(Note note) => $"{note.Filename}\n\n{note.Text}";
 

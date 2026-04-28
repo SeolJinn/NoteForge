@@ -7,15 +7,14 @@ using NoteForge.Models;
 
 namespace NoteForge.Handlers.AI;
 
-public class SummarizeNoteCommandHandler(IOllamaService ollamaService) : IRequestHandler<SummarizeNoteCommandRequest, IAsyncEnumerable<string>>
+public class SummarizeNoteCommandHandler(IAiService aiService) : IRequestHandler<SummarizeNoteCommandRequest, IAsyncEnumerable<string>>
 {
-    private readonly IOllamaService _ollamaService = ollamaService;
+    private readonly IAiService _aiService = aiService;
 
     public ValueTask<IAsyncEnumerable<string>> Handle(SummarizeNoteCommandRequest request, CancellationToken cancellationToken)
     {
         var prompt = $"Please provide a concise summary of the following note:\n\n{request.Note.Text}";
-
-        return ValueTask.FromResult(_ollamaService.StreamCompletionAsync(prompt, cancellationToken));
+        return ValueTask.FromResult(_aiService.StreamCompletionAsync(prompt, cancellationToken));
     }
 }
 

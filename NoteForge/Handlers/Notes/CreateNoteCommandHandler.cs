@@ -57,7 +57,7 @@ public class CreateNoteCommandHandler(
 
             semanticSearch.InvalidateIndex();
 
-            if (OllamaSettings.AiEnabled)
+            if (AiSettings.IsAiEnabled)
                 embeddingService.QueueEmbeddingUpdate(note, onComplete: semanticSearch.InvalidateEmbeddingsCache);
 
             return note;

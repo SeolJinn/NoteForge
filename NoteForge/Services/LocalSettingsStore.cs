@@ -54,6 +54,18 @@ public static class LocalSettingsStore
         }
     }
 
+    public static void RemoveKey(string key)
+    {
+        lock (Sync)
+        {
+            EnsureLoaded();
+            if (_cache!.Remove(key))
+            {
+                Save();
+            }
+        }
+    }
+
     private static void EnsureLoaded()
     {
         if (_cache is not null)

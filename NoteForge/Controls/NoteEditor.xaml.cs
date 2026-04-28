@@ -35,8 +35,8 @@ public sealed partial class NoteEditor : UserControl
             return;
         _initialized = true;
 
-        GenerateSummaryButton.Visibility = OllamaSettings.AiEnabled ? Visibility.Visible : Visibility.Collapsed;
-        OllamaSettings.AiEnabledChanged += OnAiEnabledChanged;
+        GenerateSummaryButton.Visibility = AiSettings.IsAiEnabled ? Visibility.Visible : Visibility.Collapsed;
+        AiSettings.ActiveProviderChanged += OnAiEnabledChanged;
 
         _interopService = App.Services.GetRequiredService<EditorInteropService>();
         _interopService.ContentChanged += OnInteropContentChanged;
@@ -48,7 +48,7 @@ public sealed partial class NoteEditor : UserControl
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        OllamaSettings.AiEnabledChanged -= OnAiEnabledChanged;
+        AiSettings.ActiveProviderChanged -= OnAiEnabledChanged;
         if (_interopService is not null)
         {
             _interopService.ContentChanged -= OnInteropContentChanged;
@@ -64,8 +64,8 @@ public sealed partial class NoteEditor : UserControl
     {
         DispatcherQueue.TryEnqueue(() =>
         {
-            GenerateSummaryButton.Visibility = OllamaSettings.AiEnabled ? Visibility.Visible : Visibility.Collapsed;
-            if (!OllamaSettings.AiEnabled)
+            GenerateSummaryButton.Visibility = AiSettings.IsAiEnabled ? Visibility.Visible : Visibility.Collapsed;
+            if (!AiSettings.IsAiEnabled)
                 HideAiSummary();
         });
     }

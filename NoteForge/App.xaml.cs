@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UI.Xaml;
 using NoteForge.Interfaces;
 using NoteForge.Services;
+using NoteForge.Services.Ai;
 using NoteForge.Services.Embeddings;
 using NoteForge.Services.Search;
 
@@ -24,6 +25,7 @@ public partial class App : Application
     public static ISearchService SearchService => Services.GetRequiredService<ISearchService>();
     public static IEmbeddingRepository EmbeddingRepository => Services.GetRequiredService<IEmbeddingRepository>();
     public static IEmbeddingService EmbeddingService => Services.GetRequiredService<IEmbeddingService>();
+    public static IAiService AiService => Services.GetRequiredService<IAiService>();
 
     public App()
     {
@@ -46,7 +48,12 @@ public partial class App : Application
         services.AddTransient<EditorInteropService>();
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IFolderDialogService, FolderDialogService>();
-        services.AddSingleton<IOllamaService, OllamaService>();
+        services.AddSingleton<DisabledAiProvider>();
+        services.AddSingleton<OllamaAiProvider>();
+        services.AddSingleton<OpenAiAiProvider>(sp => new OpenAiAiProvider(new System.Net.Http.HttpClient()));
+        services.AddSingleton<GeminiAiProvider>(sp => new GeminiAiProvider(new System.Net.Http.HttpClient()));
+        services.AddSingleton<AiProviderRegistry>();
+        services.AddSingleton<IAiService>(sp => sp.GetRequiredService<AiProviderRegistry>());
         services.AddSingleton<ISectionService, SectionService>();
         services.AddSingleton<IFolderService, FolderService>();
         services.AddSingleton<FolderTreeService>();
