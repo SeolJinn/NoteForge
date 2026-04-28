@@ -146,7 +146,8 @@ public class SettingsPopup
 
         var conditionalHost = new ContentControl
         {
-            HorizontalAlignment = HorizontalAlignment.Stretch
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch
         };
 
         ProviderPanelState? currentPanel = null;
@@ -633,7 +634,8 @@ public class SettingsPopup
             Background = (Brush)Application.Current.Resources["AppBackground"],
             Foreground = (Brush)Application.Current.Resources["TextPrimary"],
             BorderBrush = (Brush)Application.Current.Resources["Separator"],
-            BorderThickness = new Thickness(1)
+            BorderThickness = new Thickness(1),
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
         textBox.Resources["TextControlBackgroundPointerOver"] = Application.Current.Resources["AppBackground"];
         textBox.Resources["TextControlBackgroundFocused"] = Application.Current.Resources["AppBackground"];

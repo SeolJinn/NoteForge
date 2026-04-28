@@ -4,7 +4,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Mediator;
 using Microsoft.Extensions.Logging;
-using NoteForge.Configuration;
 using NoteForge.Interfaces;
 using NoteForge.Models;
 

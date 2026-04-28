@@ -7,10 +7,18 @@ namespace NoteForge.Services.Ai.Internal;
 
 internal static class HttpRetry
 {
-    public static async Task<HttpResponseMessage> SendWithRetryAsync(
+    public static Task<HttpResponseMessage> SendWithRetryAsync(
         HttpClient client,
         Func<HttpRequestMessage> requestFactory,
         HttpCompletionOption completionOption,
+        CancellationToken cancellationToken)
+        => SendWithRetryAsync(client, requestFactory, completionOption, Task.Delay, cancellationToken);
+
+    internal static async Task<HttpResponseMessage> SendWithRetryAsync(
+        HttpClient client,
+        Func<HttpRequestMessage> requestFactory,
+        HttpCompletionOption completionOption,
+        Func<TimeSpan, CancellationToken, Task> delayFn,
         CancellationToken cancellationToken)
     {
         var response = await client.SendAsync(requestFactory(), completionOption, cancellationToken);
@@ -23,18 +31,18 @@ internal static class HttpRetry
         var delay = ResolveRetryDelay(response);
         response.Dispose();
 
-        await Task.Delay(delay, cancellationToken);
+        await delayFn(delay, cancellationToken);
 
         return await client.SendAsync(requestFactory(), completionOption, cancellationToken);
     }
 
-    private static bool ShouldRetry(HttpResponseMessage response)
+    internal static bool ShouldRetry(HttpResponseMessage response)
     {
         var status = (int)response.StatusCode;
         return status is 429 || (status >= 500 && status < 600);
     }
 
-    private static TimeSpan ResolveRetryDelay(HttpResponseMessage response)
+    internal static TimeSpan ResolveRetryDelay(HttpResponseMessage response)
     {
         var retryAfter = response.Headers.RetryAfter;
         if (retryAfter is not null)

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using NoteForge.Interfaces;
 using NoteForge.Models;
-using NoteForge.Services.Search;
 
 namespace NoteForge.Services.Search;
 

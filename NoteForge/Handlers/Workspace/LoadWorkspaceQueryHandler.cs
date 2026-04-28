@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,7 +28,7 @@ public sealed class LoadWorkspaceQueryHandler(
                 InitialNoteFilePath: null);
         }
 
-        List<Note> notes = [.. await mediator.Send(new GetNotesQueryRequest(), cancellationToken)];
+        var notes = (await mediator.Send(new GetNotesQueryRequest(), cancellationToken)).ToList();
 
         var rootFolder = folderService.BuildFolderTree(noteService.CurrentNotebookPath);
         folderService.LoadExpandedState(rootFolder);

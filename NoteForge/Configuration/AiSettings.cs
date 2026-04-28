@@ -46,7 +46,7 @@ public static class AiSettings
         get
         {
             var raw = LocalSettingsStore.GetString(ActiveProviderKey);
-            if (raw is not null && Enum.TryParse<AiProviderType>(raw, out var parsed))
+            if (raw is not null && Enum.TryParse<AiProviderType>(raw, ignoreCase: true, out var parsed))
             {
                 return parsed;
             }

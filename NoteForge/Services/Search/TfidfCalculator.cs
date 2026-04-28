@@ -26,12 +26,6 @@ public class TfidfCalculator
             stopwords.Add(word);
         }
 
-        var roWords = StopWords.GetStopWords("ro");
-        foreach (var word in roWords)
-        {
-            stopwords.Add(word);
-        }
-
         return stopwords;
     }
 
@@ -87,6 +81,11 @@ public class TfidfCalculator
 
             foreach (var (term, termFreq) in tf)
             {
+                if (_totalDocuments >= 3
+                    && _documentFrequency.TryGetValue(term, out var df)
+                    && df * 2 > _totalDocuments)
+                    continue;
+
                 var idf = CalculateIdf(term);
                 var weight = termFreq * idf;
                 if (weight > 0)
@@ -210,7 +209,7 @@ public class TfidfCalculator
     private double CalculateIdf(string term)
     {
         if (_documentFrequency.TryGetValue(term, out var docFreq))
-            return Math.Log((double)_totalDocuments / docFreq);
+            return Math.Log((double)(_totalDocuments + 1) / (docFreq + 1)) + 1;
 
         if (term.Length < 3)
             return 0;
@@ -226,7 +225,7 @@ public class TfidfCalculator
             return 0;
 
         var cappedFreq = Math.Min(summedFreq, _totalDocuments);
-        return Math.Log((double)_totalDocuments / cappedFreq);
+        return Math.Log((double)(_totalDocuments + 1) / (cappedFreq + 1)) + 1;
     }
 
     private List<string> Tokenize(string text)

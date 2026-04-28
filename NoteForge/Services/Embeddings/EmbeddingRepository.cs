@@ -315,8 +315,12 @@ public class EmbeddingRepository : IEmbeddingRepository
         _lock.Wait();
         try
         {
-            _connection?.Dispose();
-            _connection = null;
+            if (_connection is not null)
+            {
+                SqliteConnection.ClearPool(_connection);
+                _connection.Dispose();
+                _connection = null;
+            }
         }
         finally
         {

@@ -17,7 +17,7 @@ public class EmbeddingService(
     IEmbeddingRepository embeddingRepo,
     ILogger<EmbeddingService> logger) : IEmbeddingService
 {
-    private static readonly TimeSpan UpdateDebounce = TimeSpan.FromSeconds(5);
+    internal static TimeSpan UpdateDebounce { get; set; } = TimeSpan.FromSeconds(5);
 
     private CancellationTokenSource? _backgroundCts;
     private int _isGenerating;
