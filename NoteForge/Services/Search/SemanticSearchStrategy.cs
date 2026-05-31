@@ -15,6 +15,10 @@ public class SemanticSearchStrategy(
     IEmbeddingRepository embeddingRepository,
     ILogger<SemanticSearchStrategy> logger) : ISemanticSearchStrategy
 {
+    private const double SemanticFloor = 0.25;
+    private const double LexicalWeight = 0.15;
+    private const double FilenameBoost = 0.15;
+
     private readonly IAiService _aiService = aiService;
     private readonly ILogger<SemanticSearchStrategy> _logger = logger;
     private readonly TfidfCalculator _tfidfCalculator = new();
@@ -90,28 +94,28 @@ public class SemanticSearchStrategy(
 
             List<(Note note, float hybridScore, float semanticScore, float tfidfScore)> hybridResults = [];
 
+            var queryLower = query.ToLowerInvariant();
+
             foreach (var note in notesList.Where(n => embeddingMap.ContainsKey(n.FilePath)))
             {
                 var semanticScore = semanticScores.GetValueOrDefault(note.FilePath, 0.0);
                 var tfidfScore = tfidfScores.GetValueOrDefault(note.FilePath, 0.0);
 
-                if (tfidfScore < 0.15 || semanticScore < 0.15)
-                    continue;
+                var filenameMatch = Path.GetFileNameWithoutExtension(note.FilePath)
+                    .ToLowerInvariant()
+                    .Contains(queryLower);
 
-                var hybridScore = (float)VectorMath.HarmonicMean(semanticScore, tfidfScore);
+                var (keep, hybridScore) = VectorMath.HybridScore(
+                    semanticScore,
+                    tfidfScore,
+                    filenameMatch,
+                    SemanticFloor,
+                    LexicalWeight,
+                    FilenameBoost);
 
-                var filenameBoost = 0f;
-                var queryLower = query.ToLowerInvariant();
-                var filenameLower = Path.GetFileNameWithoutExtension(note.FilePath).ToLowerInvariant();
-                if (filenameLower.Contains(queryLower))
+                if (keep)
                 {
-                    filenameBoost = 0.15f;
-                    hybridScore += filenameBoost;
-                }
-
-                if (hybridScore > 0.25f)
-                {
-                    hybridResults.Add((note, hybridScore, (float)semanticScore, (float)tfidfScore));
+                    hybridResults.Add((note, (float)hybridScore, (float)semanticScore, (float)tfidfScore));
                 }
             }
 

@@ -30,6 +30,7 @@ public sealed partial class WorkspaceSidebar : UserControl
     public event EventHandler<Folder>? DeleteFolderRequested;
     public event EventHandler<(Note Note, Folder TargetFolder)>? NoteMovedToFolder;
     public event EventHandler? SettingsRequested;
+    public event EventHandler? ImportRequested;
     public event EventHandler<Note>? ToggleFavoriteRequested;
     public event EventHandler<(Note Note, string NewName)>? RenameNoteRequested;
     public event EventHandler<Note>? DeleteNoteRequested;
@@ -332,6 +333,11 @@ public sealed partial class WorkspaceSidebar : UserControl
     private void OnSettingsClicked(object sender, RoutedEventArgs e)
     {
         SettingsRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void OnImportClicked(object sender, RoutedEventArgs e)
+    {
+        ImportRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnCreateNoteClicked(object sender, RoutedEventArgs e)

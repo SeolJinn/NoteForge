@@ -3,6 +3,7 @@ export const WikiLink = {
   parseInline: [
     {
       name: "WikiLink",
+      before: "Link",
       parse(cx, next, pos) {
         if (next !== 91 || cx.char(pos + 1) !== 91) return -1;
         let end = pos + 2;

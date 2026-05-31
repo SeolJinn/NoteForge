@@ -107,6 +107,7 @@
                                        RenameFolderRequested="OnRenameFolderClicked"
                                        DeleteFolderRequested="OnDeleteFolderClicked"
                                        SettingsRequested="OnSettingsClicked"
+                                       ImportRequested="OnImportRequested"
                                        RenameNoteRequested="OnRenameNoteClicked"
                                        DeleteNoteRequested="OnDeleteNoteClicked"
                                        NoteMovedToFolder="OnNoteMovedToFolder"/>

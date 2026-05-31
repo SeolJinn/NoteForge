@@ -99,7 +99,8 @@ public sealed partial class WorkspacePage : Page
 
     private async void OnNoteMovedToFolder(object sender, (Note Note, Folder TargetFolder) e)
     {
-        var wasSelected = _selectedNote?.FilePath == e.Note.FilePath;
+        var oldPath = e.Note.FilePath;
+        var wasSelected = _selectedNote?.FilePath == oldPath;
         var expandedStates = Sidebar.GetFolderExpandedStates();
 
         var result = await _mediator.Send(new MoveNoteToFolderCommandRequest(e.Note, e.TargetFolder.DirectoryPath));
@@ -108,6 +109,13 @@ public sealed partial class WorkspacePage : Page
             Toast.Show(result.ErrorMessage!);
             return;
         }
+
+        var tab = _tabManager.Tabs.FirstOrDefault(t => t.FilePath == oldPath);
+        if (tab is not null)
+            tab.FilePath = e.Note.FilePath;
+
+        if (wasSelected && _selectedNote is not null)
+            _selectedNote.FilePath = e.Note.FilePath;
 
         await LoadNotes();
 
@@ -123,5 +131,30 @@ public sealed partial class WorkspacePage : Page
     {
         await _mediator.Send(new ToggleFavoriteCommandRequest(note));
         await LoadNotes();
+    }
+
+    private async void OnImportRequested(object sender, System.EventArgs e)
+    {
+        var folder = await _dialogService.PickFolderAsync();
+        if (folder is null) return;
+
+        var result = await _mediator.Send(new ImportFolderCommandRequest(folder));
+        if (!result.Success)
+        {
+            Toast.Show(result.ErrorMessage!);
+            return;
+        }
+
+        await LoadNotes();
+
+        if (result.Imported is 0)
+        {
+            Toast.Show("No supported files found to import.");
+            return;
+        }
+
+        Toast.Show(result.Skipped > 0
+            ? $"Imported {result.Imported} notes from '{result.CreatedFolderName}' — {result.Skipped} files skipped"
+            : $"Imported {result.Imported} notes from '{result.CreatedFolderName}'");
     }
 }

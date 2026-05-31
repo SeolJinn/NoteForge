@@ -10,6 +10,77 @@ function isRangeActive(state, from, to) {
   return false;
 }
 
+const INLINE_MARK_NAMES = new Set([
+  "EmphasisMark",
+  "CodeMark",
+  "StrikethroughMark",
+  "LinkMark",
+  "URL",
+  "LinkTitle",
+]);
+
+function parseInlineSegments(state, node) {
+  const segments = [];
+  let pos = node.from;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.from > pos) {
+      segments.push({ type: "text", value: state.sliceDoc(pos, child.from) });
+    }
+    pos = child.to;
+    if (INLINE_MARK_NAMES.has(child.name)) continue;
+    segments.push(parseInlineNode(state, child));
+  }
+  if (pos < node.to) {
+    segments.push({ type: "text", value: state.sliceDoc(pos, node.to) });
+  }
+  return segments;
+}
+
+function parseInlineNode(state, node) {
+  switch (node.name) {
+    case "StrongEmphasis":
+      return { type: "strong", children: parseInlineSegments(state, node) };
+    case "Emphasis":
+      return { type: "emphasis", children: parseInlineSegments(state, node) };
+    case "Strikethrough":
+      return { type: "strikethrough", children: parseInlineSegments(state, node) };
+    case "InlineCode": {
+      const marks = node.getChildren("CodeMark");
+      const from = marks.length ? marks[0].to : node.from;
+      const to = marks.length > 1 ? marks[marks.length - 1].from : node.to;
+      return { type: "code", value: state.sliceDoc(from, to) };
+    }
+    case "Link": {
+      const url = node.getChild("URL");
+      const href = url ? state.sliceDoc(url.from, url.to) : "";
+      return { type: "link", href, children: parseInlineSegments(state, node) };
+    }
+    case "WikiLink": {
+      const text = state.sliceDoc(node.from + 2, node.to - 2);
+      return { type: "wikilink", href: `[[${text}]]`, children: [{ type: "text", value: text }] };
+    }
+    default:
+      return { type: "text", value: state.sliceDoc(node.from, node.to) };
+  }
+}
+
+function trimSegments(segments) {
+  if (segments.length > 0) {
+    const first = segments[0];
+    if (first.type === "text") first.value = first.value.replace(/^\s+/, "");
+    const last = segments[segments.length - 1];
+    if (last.type === "text") last.value = last.value.replace(/\s+$/, "");
+  }
+  return segments.filter((s) => !(s.type === "text" && s.value === ""));
+}
+
+function parseCell(state, cell) {
+  return {
+    text: state.sliceDoc(cell.from, cell.to).trim(),
+    segments: trimSegments(parseInlineSegments(state, cell)),
+  };
+}
+
 function parseTableCells(state, node) {
   const headers = [];
   const alignments = [];
@@ -19,7 +90,7 @@ function parseTableCells(state, node) {
     if (child.name === "TableHeader") {
       for (let cell = child.firstChild; cell; cell = cell.nextSibling) {
         if (cell.name === "TableCell") {
-          headers.push(state.sliceDoc(cell.from, cell.to).trim());
+          headers.push(parseCell(state, cell));
         }
       }
     } else if (child.name === "TableDelimiter") {
@@ -35,7 +106,7 @@ function parseTableCells(state, node) {
       const row = [];
       for (let cell = child.firstChild; cell; cell = cell.nextSibling) {
         if (cell.name === "TableCell") {
-          row.push(state.sliceDoc(cell.from, cell.to).trim());
+          row.push(parseCell(state, cell));
         }
       }
       rows.push(row);
@@ -43,6 +114,38 @@ function parseTableCells(state, node) {
   }
 
   return { headers, alignments, rows };
+}
+
+function renderInlineSegments(parent, segments) {
+  for (const seg of segments) {
+    parent.appendChild(renderInlineSegment(seg));
+  }
+}
+
+function renderInlineSegment(seg) {
+  if (seg.type === "text") {
+    return document.createTextNode(seg.value);
+  }
+  if (seg.type === "code") {
+    const el = document.createElement("span");
+    el.className = "cm-inline-code";
+    el.textContent = seg.value;
+    return el;
+  }
+
+  const classMap = {
+    strong: "cm-strong",
+    emphasis: "cm-emphasis",
+    strikethrough: "cm-strikethrough",
+    link: "cm-link",
+    wikilink: "cm-wikilink",
+  };
+
+  const el = document.createElement("span");
+  el.className = classMap[seg.type] ?? "";
+  if (seg.href) el.dataset.href = seg.href;
+  renderInlineSegments(el, seg.children ?? []);
+  return el;
 }
 
 class TableWidget extends WidgetType {
@@ -61,12 +164,12 @@ class TableWidget extends WidgetType {
     if (a.headers.length !== b.headers.length) return false;
     if (a.rows.length !== b.rows.length) return false;
     for (let i = 0; i < a.headers.length; i++) {
-      if (a.headers[i] !== b.headers[i]) return false;
+      if (a.headers[i].text !== b.headers[i].text) return false;
     }
     for (let i = 0; i < a.rows.length; i++) {
       if (a.rows[i].length !== b.rows[i].length) return false;
       for (let j = 0; j < a.rows[i].length; j++) {
-        if (a.rows[i][j] !== b.rows[i][j]) return false;
+        if (a.rows[i][j].text !== b.rows[i][j].text) return false;
       }
     }
     return true;
@@ -81,7 +184,7 @@ class TableWidget extends WidgetType {
     const headerRow = document.createElement("tr");
     for (let i = 0; i < headers.length; i++) {
       const th = document.createElement("th");
-      th.textContent = headers[i];
+      renderInlineSegments(th, headers[i].segments);
       if (alignments[i]) th.style.textAlign = alignments[i];
       headerRow.appendChild(th);
     }
@@ -93,7 +196,7 @@ class TableWidget extends WidgetType {
       const tr = document.createElement("tr");
       for (let i = 0; i < row.length; i++) {
         const td = document.createElement("td");
-        td.textContent = row[i];
+        renderInlineSegments(td, row[i].segments);
         if (alignments[i]) td.style.textAlign = alignments[i];
         tr.appendChild(td);
       }

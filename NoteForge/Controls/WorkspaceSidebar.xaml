@@ -50,6 +50,13 @@
                                     <FontIcon Glyph="&#xE8F4;" FontSize="16"/>
                                 </MenuFlyoutItem.Icon>
                             </MenuFlyoutItem>
+                            <MenuFlyoutItem Text="Import folder…"
+                                            Click="OnImportClicked"
+                                            Foreground="#DADADA">
+                                <MenuFlyoutItem.Icon>
+                                    <FontIcon Glyph="&#xE8B5;" FontSize="16"/>
+                                </MenuFlyoutItem.Icon>
+                            </MenuFlyoutItem>
                         </MenuFlyout>
                     </StackPanel.ContextFlyout>
                 </StackPanel>
@@ -97,12 +104,30 @@
             </Grid>
         </Grid>
 
-        <Grid Grid.Row="1" Padding="10" ColumnDefinitions="*, Auto" ColumnSpacing="6">
+        <Grid Grid.Row="1" Padding="10" ColumnDefinitions="*, Auto, Auto" ColumnSpacing="6">
             <controls:VaultSelector x:Name="VaultSelectorControl"
                                    Grid.Column="0"
                                    VaultSelected="OnVaultItemSelected"
                                    ManageVaultsRequested="OnManageVaultsRequested"/>
             <Button Grid.Column="1"
+                    Click="OnImportClicked"
+                    Background="#1E1E1E"
+                    BorderThickness="1"
+                    BorderBrush="{StaticResource Separator}"
+                    CornerRadius="6"
+                    Padding="10"
+                    VerticalAlignment="Stretch"
+                    ToolTipService.ToolTip="Import folder">
+                <Button.Resources>
+                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2A2A2A"/>
+                    <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#333333"/>
+                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#404040"/>
+                </Button.Resources>
+                <FontIcon Glyph="&#xE8B5;"
+                          FontSize="14"
+                          Foreground="{StaticResource TextSecondary}"/>
+            </Button>
+            <Button Grid.Column="2"
                     Click="OnSettingsClicked"
                     Background="#1E1E1E"
                     BorderThickness="1"

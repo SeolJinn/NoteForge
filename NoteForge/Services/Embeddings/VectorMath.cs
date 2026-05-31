@@ -50,6 +50,26 @@ public static class VectorMath
         return 2.0 * (a * b) / (a + b);
     }
 
+    public static (bool keep, double score) HybridScore(
+        double semanticScore,
+        double tfidfScore,
+        bool filenameMatch,
+        double semanticFloor,
+        double lexicalWeight,
+        double filenameBoost)
+    {
+        if (semanticScore < semanticFloor && !filenameMatch)
+            return (false, 0);
+
+        var baseScore = Math.Clamp(semanticScore, 0, 1);
+        var score = baseScore + (lexicalWeight * tfidfScore * (1 - baseScore));
+
+        if (filenameMatch)
+            score += filenameBoost * (1 - score);
+
+        return (true, score);
+    }
+
     public static List<(T item, float score)> RankBySimilarity<T>(
         float[] queryEmbedding,
         IEnumerable<(T item, float[] embedding)> candidates,
