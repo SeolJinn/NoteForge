@@ -31,7 +31,13 @@ public sealed class EditorInteropService(ILogger<EditorInteropService> logger) :
         _webView = webView;
         _readyTcs = new TaskCompletionSource();
 
-        await _webView.EnsureCoreWebView2Async();
+        var userDataFolder = System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "NoteForge", "WebView2");
+        System.IO.Directory.CreateDirectory(userDataFolder);
+
+        var environment = await CoreWebView2Environment.CreateWithOptionsAsync(null, userDataFolder, null);
+        await _webView.EnsureCoreWebView2Async(environment);
         _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
         var assembly = Assembly.GetExecutingAssembly();
