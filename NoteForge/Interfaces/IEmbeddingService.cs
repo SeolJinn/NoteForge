@@ -11,6 +11,7 @@ public interface IEmbeddingService
     event EventHandler<EmbeddingProgress>? ProgressChanged;
     bool IsGenerating { get; }
     Task StartBackgroundGenerationAsync(IEnumerable<Note> notes, CancellationToken cancellationToken = default);
+    Task EnsureEmbeddingsAsync(IEnumerable<Note> notes, CancellationToken cancellationToken = default);
     Task GenerateEmbeddingForNoteAsync(Note note, CancellationToken cancellationToken = default);
     void QueueEmbeddingUpdate(Note note, string? oldPathToDelete = null, Action? onComplete = null);
     void CancelGeneration();

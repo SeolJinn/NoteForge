@@ -51,7 +51,78 @@ public sealed partial class WorkspacePage : Page
 
         Loaded += WorkspacePage_Loaded;
         Unloaded += WorkspacePage_Unloaded;
+
+#if DEBUG
+        var evaluationAccelerator = new Microsoft.UI.Xaml.Input.KeyboardAccelerator
+        {
+            Key = Windows.System.VirtualKey.E,
+            Modifiers = Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift
+        };
+        evaluationAccelerator.Invoked += OnRunSearchEvaluation;
+        KeyboardAccelerators.Add(evaluationAccelerator);
+
+        var timingAccelerator = new Microsoft.UI.Xaml.Input.KeyboardAccelerator
+        {
+            Key = Windows.System.VirtualKey.T,
+            Modifiers = Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift
+        };
+        timingAccelerator.Invoked += OnRunEmbeddingTiming;
+        KeyboardAccelerators.Add(timingAccelerator);
+#endif
     }
+
+#if DEBUG
+    private async void OnRunSearchEvaluation(
+        Microsoft.UI.Xaml.Input.KeyboardAccelerator sender,
+        Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        try
+        {
+            var harness = App.Services.GetRequiredService<Services.Search.SearchEvaluationHarness>();
+            var message = await harness.RunAsync();
+
+            var dialog = new ContentDialog
+            {
+                Title = "Search evaluation",
+                Content = message,
+                CloseButtonText = "OK",
+                XamlRoot = XamlRoot
+            };
+            await dialog.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Search evaluation failed");
+        }
+    }
+
+    private async void OnRunEmbeddingTiming(
+        Microsoft.UI.Xaml.Input.KeyboardAccelerator sender,
+        Microsoft.UI.Xaml.Input.KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        try
+        {
+            var notes = (await _mediator.Send(new GetNotesQueryRequest())).ToList();
+            var embeddingService = App.Services.GetRequiredService<IEmbeddingService>();
+            _ = embeddingService.RegenerateAllAsync(notes);
+
+            var dialog = new ContentDialog
+            {
+                Title = "Embedding timing",
+                Content = $"Cold re-embedding of {notes.Count} notes started. Timing checkpoints are written to %LOCALAPPDATA%\\NoteForge\\embedding-timing.txt when it completes.",
+                CloseButtonText = "OK",
+                XamlRoot = XamlRoot
+            };
+            await dialog.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Embedding timing run failed");
+        }
+    }
+#endif
 
     private async void WorkspacePage_Loaded(object sender, RoutedEventArgs e) => await LoadNotes();
 

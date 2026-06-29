@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -18,6 +20,8 @@ public class EmbeddingService(
     ILogger<EmbeddingService> logger) : IEmbeddingService
 {
     internal static TimeSpan UpdateDebounce { get; set; } = TimeSpan.FromSeconds(5);
+
+    private const int TimingCheckpointInterval = 25;
 
     private CancellationTokenSource? _backgroundCts;
     private int _isGenerating;
@@ -44,6 +48,10 @@ public class EmbeddingService(
         {
             List<Note> notesList = [.. notes];
             var progress = new EmbeddingProgress { TotalNotes = notesList.Count };
+
+            var stopwatch = Stopwatch.StartNew();
+            List<(int generated, double seconds)> timingPoints = [];
+            var generated = 0;
 
             try
             {
@@ -88,6 +96,14 @@ public class EmbeddingService(
                             {
                                 await GenerateEmbeddingForNoteAsync(note, cts.Token);
                                 logger.LogInformation("Generated embedding for {FileName}", note.Filename);
+
+                                generated++;
+                                if (generated % TimingCheckpointInterval is 0)
+                                {
+                                    var elapsed = stopwatch.Elapsed.TotalSeconds;
+                                    timingPoints.Add((generated, elapsed));
+                                    logger.LogInformation("Embedding timing: {Generated} notes in {Seconds:F1}s", generated, elapsed);
+                                }
                             }
                         }
 
@@ -112,6 +128,13 @@ public class EmbeddingService(
                     progress.ProcessedNotes - progress.SkippedNotes - progress.FailedNotes,
                     progress.SkippedNotes,
                     progress.FailedNotes);
+
+                if (generated > 0)
+                {
+                    if (timingPoints.Count is 0 || timingPoints[^1].generated != generated)
+                        timingPoints.Add((generated, stopwatch.Elapsed.TotalSeconds));
+                    WriteTimingLog(timingPoints);
+                }
             }
             finally
             {
@@ -225,6 +248,38 @@ public class EmbeddingService(
         await StartBackgroundGenerationAsync(notes, cancellationToken);
     }
 
+    public async Task EnsureEmbeddingsAsync(IEnumerable<Note> notes, CancellationToken cancellationToken = default)
+    {
+        if (await StoredEmbeddingsMatchActiveProviderAsync())
+        {
+            await StartBackgroundGenerationAsync(notes, cancellationToken);
+        }
+        else
+        {
+            logger.LogInformation("Stored embeddings do not match the active provider; regenerating");
+            await RegenerateAllAsync(notes, cancellationToken);
+        }
+    }
+
+    private async Task<bool> StoredEmbeddingsMatchActiveProviderAsync()
+    {
+        if (!embeddingRepo.IsInitialized)
+            return true;
+
+        if (await embeddingRepo.CountEmbeddingsAsync() is 0)
+            return true;
+
+        var metadata = await embeddingRepo.GetMetadataAsync();
+        if (metadata is null)
+            return false;
+
+        if (metadata.ProviderName != NoteForge.Configuration.AiSettings.ActiveProvider.ToString()
+            || metadata.Dimension != aiService.EmbeddingDimension)
+            return false;
+
+        return string.IsNullOrEmpty(metadata.ModelId) || metadata.ModelId == GetActiveEmbeddingModelId();
+    }
+
     private static string GetActiveEmbeddingModelId() =>
         NoteForge.Configuration.AiSettings.ActiveProvider switch
         {
@@ -233,6 +288,33 @@ public class EmbeddingService(
             NoteForge.Services.Ai.AiProviderType.Ollama => NoteForge.Configuration.AiSettings.OllamaEmbeddingModel,
             _ => string.Empty
         };
+
+    private void WriteTimingLog(List<(int generated, double seconds)> points)
+    {
+        try
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "NoteForge");
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, "embedding-timing.txt");
+
+            var sb = new StringBuilder();
+            sb.AppendLine("=== Embedding timing run (cold cache) ===");
+            sb.AppendLine($"Provider: {NoteForge.Configuration.AiSettings.ActiveProvider}  Model: {GetActiveEmbeddingModelId()}  Dimension: {aiService.EmbeddingDimension}");
+            sb.AppendLine("notes\tseconds\tms/note");
+            foreach (var (generated, seconds) in points)
+                sb.AppendLine($"{generated}\t{seconds:F1}\t{seconds / generated * 1000:F0}");
+            sb.AppendLine();
+
+            File.AppendAllText(path, sb.ToString());
+            logger.LogInformation("Embedding timing written to {Path}", path);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to write embedding timing log");
+        }
+    }
 
     private static string BuildEmbeddingText(Note note) => $"{note.Filename}\n\n{note.Text}";
 

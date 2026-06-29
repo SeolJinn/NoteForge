@@ -137,6 +137,49 @@ public class EmbeddingServiceTests : IAsyncLifetime
         Assert.Equal("nomic-embed-text", metadata.ModelId);
     }
 
+    [Fact]
+    public async Task EnsureEmbeddingsAsync_regenerates_when_stored_provider_differs()
+    {
+        await _repo.SaveEmbeddingAsync("/old.md", [0.9f], "stale-hash");
+        await _repo.SetMetadataAsync("OpenAi", 1536, "text-embedding-3-small");
+        AiSettings.ActiveProvider = AiProviderType.Ollama;
+        AiSettings.OllamaEmbeddingModel = "nomic-embed-text";
+
+        var notes = new[]
+        {
+            new Note { FilePath = "/n1.md", Filename = "n1", Text = "content of note one here" }
+        };
+
+        await _service.EnsureEmbeddingsAsync(notes);
+        await Task.Delay(200);
+
+        var all = await _repo.GetAllEmbeddingsAsync();
+        Assert.DoesNotContain(all, e => e.FilePath == "/old.md");
+        Assert.Contains(all, e => e.FilePath == "/n1.md");
+
+        var metadata = await _repo.GetMetadataAsync();
+        Assert.NotNull(metadata);
+        Assert.Equal("Ollama", metadata.ProviderName);
+        Assert.Equal(768, metadata.Dimension);
+    }
+
+    [Fact]
+    public async Task EnsureEmbeddingsAsync_keeps_existing_when_provider_matches()
+    {
+        AiSettings.ActiveProvider = AiProviderType.Ollama;
+        AiSettings.OllamaEmbeddingModel = "nomic-embed-text";
+
+        var note = new Note { FilePath = "/n1.md", Filename = "n1", Text = "content of note one here" };
+        await _service.GenerateEmbeddingForNoteAsync(note);
+        await _repo.SetMetadataAsync("Ollama", 768, "nomic-embed-text");
+        var callsAfterSeed = _ai.GenerateCallCount;
+
+        await _service.EnsureEmbeddingsAsync([note]);
+        await Task.Delay(200);
+
+        Assert.Equal(callsAfterSeed, _ai.GenerateCallCount);
+    }
+
     private static async Task WaitForDebouncedTask()
     {
         await Task.Delay(EmbeddingService.UpdateDebounce + TimeSpan.FromMilliseconds(150));

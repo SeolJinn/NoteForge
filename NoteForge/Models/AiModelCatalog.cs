@@ -39,7 +39,7 @@ public static class AiModelCatalog
         AiProviderType.Gemini =>
         [
             new("gemini-embedding-001", "gemini-embedding-001 (1536 dim)", 1536, 0.15),
-            new("gemini-embedding-2", "gemini-embedding-2 (1536 dim)", 1536, 0.15)
+            new("gemini-embedding-2", "gemini-embedding-2 (1536 dim)", 1536, 0.20)
         ],
         _ => []
     };

@@ -452,9 +452,13 @@ public class SettingsPopup
         var pricePerMillion = AiModelCatalog.FindEmbeddingModel(newProvider, embedModelId)?.PricePerMillionTokens ?? 0;
         var estimatedCost = approxTokens / 1_000_000.0 * pricePerMillion;
 
-        var costLine = pricePerMillion > 0
-            ? $"Estimated cost: ~${estimatedCost:F2} USD."
-            : "No API cost (local model).";
+        string costLine;
+        if (pricePerMillion <= 0)
+            costLine = "No API cost (local model).";
+        else if (estimatedCost < 0.005)
+            costLine = "Estimated cost: less than $0.01 USD.";
+        else
+            costLine = $"Estimated cost: ~${estimatedCost:F2} USD.";
 
         var dialog = new ContentDialog
         {

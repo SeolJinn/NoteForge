@@ -48,7 +48,7 @@ public sealed class InitializeWorkspaceCommandHandler(
         if (AiSettings.IsAiEnabled)
         {
             var notes = (await mediator.Send(new GetNotesQueryRequest(), cancellationToken)).ToList();
-            _ = embeddingService.StartBackgroundGenerationAsync(notes, cancellationToken);
+            _ = embeddingService.EnsureEmbeddingsAsync(notes, cancellationToken);
         }
 
         return true;
