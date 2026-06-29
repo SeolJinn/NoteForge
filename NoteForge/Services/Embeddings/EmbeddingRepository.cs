@@ -160,6 +160,24 @@ public class EmbeddingRepository : IEmbeddingRepository
         }
     }
 
+    public async Task<int> CountEmbeddingsAsync()
+    {
+        await _lock.WaitAsync();
+        try
+        {
+            if (_connection is null)
+                return 0;
+
+            var command = _connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM embeddings";
+            return Convert.ToInt32(await command.ExecuteScalarAsync());
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
     public async Task DeleteEmbeddingAsync(string filePath)
     {
         await _lock.WaitAsync();

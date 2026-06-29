@@ -12,6 +12,7 @@ public interface IEmbeddingRepository : IDisposable
     Task<bool> SaveEmbeddingAsync(string filePath, float[] embedding, string contentHash);
     Task<EmbeddingRecord?> GetEmbeddingAsync(string filePath);
     Task<List<EmbeddingRecord>> GetAllEmbeddingsAsync();
+    Task<int> CountEmbeddingsAsync();
     Task DeleteEmbeddingAsync(string filePath);
     Task UpdateEmbeddingPathAsync(string oldPath, string newPath);
     Task<bool> IsEmbeddingStaleAsync(string filePath, string currentContentHash);

@@ -10,7 +10,7 @@
   <Identity
     Name="496798cf-27be-425a-8ac0-1fe234eef460"
     Publisher="CN=manol"
-    Version="1.2.1.0" />
+    Version="1.2.2.0" />
 
   <mp:PhoneIdentity PhoneProductId="496798cf-27be-425a-8ac0-1fe234eef460" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
